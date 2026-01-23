@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Configuration for DailyWell
+    OWASP Mobile Security: Ensures all network traffic uses secure connections
+-->
+<network-security-config>
+    <!-- Base configuration: No cleartext (HTTP) traffic allowed -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust only system CAs -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Production API domains with certificate pinning -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Anthropic Claude API -->
+        <domain includeSubdomains="true">api.anthropic.com</domain>
+        <pin-set expiration="2027-01-01">
+            <!-- Claude API certificate pins - update periodically -->
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+            <pin digest="SHA-256">CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Firebase domains -->
+        <domain includeSubdomains="true">firebaseio.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">firebase.google.com</domain>
+    </domain-config>
+
+    <!-- Debug-only configuration: Allow localhost for development -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+
+    <!-- Content simulation -->
+    <item
+        android:left="12dp"
+        android:top="12dp"
+        android:right="12dp"
+        android:bottom="12dp">
+        <layer-list>
+            <!-- Header bar -->
+            <item android:height="20dp" android:gravity="top">
+                <shape android:shape="rectangle">
+                    <solid android:color="#E8F5E9" />
+                    <corners android:radius="4dp" />
+                </shape>
+            </item>
+
+            <!-- Habit row 1 -->
+            <item
+                android:top="28dp"
+                android:height="32dp"
+                android:gravity="top">
+                <shape android:shape="rectangle">
+                    <solid android:color="#F5F5F5" />
+                    <corners android:radius="8dp" />
+                </shape>
+            </item>
+
+            <!-- Habit row 2 -->
+            <item
+                android:top="66dp"
+                android:height="32dp"
+                android:gravity="top">
+                <shape android:shape="rectangle">
+                    <solid android:color="#F5F5F5" />
+                    <corners android:radius="8dp" />
+                </shape>
+            </item>
+
+            <!-- Habit row 3 -->
+            <item
+                android:top="104dp"
+                android:height="32dp"
+                android:gravity="top">
+                <shape android:shape="rectangle">
+                    <solid android:color="#E8F5E9" />
+                    <corners android:radius="8dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</layer-list>

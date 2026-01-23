@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DailyWell</string>
+    <string name="widget_description">Track your daily habits with one tap</string>
+    <string name="widget_name">DailyWell Habits</string>
+</resources>

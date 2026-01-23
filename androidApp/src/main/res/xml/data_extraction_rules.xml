@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Data Extraction Rules for Android 12+ (API 31+)
+    OWASP Mobile Security: Prevents sensitive data from being extracted via backup
+-->
+<data-extraction-rules>
+    <!-- Cloud backup rules -->
+    <cloud-backup>
+        <!-- Exclude all app data from cloud backup for security -->
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+
+    <!-- Device-to-device transfer rules -->
+    <device-transfer>
+        <!-- Exclude sensitive data from device transfers -->
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <!-- Allow only non-sensitive cached data -->
+        <include domain="file" path="cache/" />
+    </device-transfer>
+</data-extraction-rules>
