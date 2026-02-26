@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +37,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dailywell.app.core.theme.PremiumDesignTokens
 import com.dailywell.app.core.theme.PremiumPalette
+import com.dailywell.app.data.model.TodayViewMode
+import com.dailywell.app.data.model.UserSettings
+import com.dailywell.app.data.repository.SettingsRepository
 import com.dailywell.app.ui.components.DailyWellIcons
 import com.dailywell.app.ui.components.ElevationLevel
 import com.dailywell.app.ui.components.GlassCard
@@ -47,6 +51,7 @@ import com.dailywell.app.ui.components.PremiumTabHeader
 import com.dailywell.app.ui.components.ShimmerLoadingScreen
 import com.dailywell.app.ui.components.StaggeredItem
 import com.dailywell.app.ui.navigation.Screen
+import org.koin.compose.koinInject
 
 @Composable
 fun TrackTabScreen(
@@ -55,6 +60,9 @@ fun TrackTabScreen(
     onNavigateToPaywall: () -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
+    val settingsRepository: SettingsRepository = koinInject()
+    val settings by settingsRepository.getSettings().collectAsState(initial = UserSettings())
+    val simpleMode = settings.todayViewMode == TodayViewMode.SIMPLE
     val colorScheme = MaterialTheme.colorScheme
     val useDarkHeroPalette = colorScheme.surface.luminance() < 0.45f
     val heroGradient = remember(
@@ -87,7 +95,7 @@ fun TrackTabScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     PremiumTabHeader(
                         title = "Track",
-                        subtitle = "Core logs first. Scan is optional.",
+                        subtitle = if (simpleMode) "Simple mode: core logs only." else "Full mode: all tracking tools.",
                         includeStatusBarPadding = true
                     )
 
@@ -140,7 +148,7 @@ fun TrackTabScreen(
                         requiresPremium = true,
                         paletteIndex = 1
                     )
-                    val mealFeatures = listOf(
+                    val dailyEssentials = listOf(
                         feature(
                             title = "Water Tracker",
                             subtitle = "Hydration history and daily goal",
@@ -148,9 +156,7 @@ fun TrackTabScreen(
                             screen = Screen.WaterTracking,
                             requiresPremium = false,
                             paletteIndex = 4
-                        )
-                    )
-                    val historyFeatures = listOf(
+                        ),
                         feature(
                             title = "Workout Log",
                             subtitle = "Capture sessions fast with set details",
@@ -160,22 +166,22 @@ fun TrackTabScreen(
                             paletteIndex = 2
                         ),
                         feature(
-                            title = "Workout History",
-                            subtitle = "Review volume, progress, and previous sessions",
-                            icon = DailyWellIcons.Analytics.Pattern,
-                            screen = Screen.WorkoutHistory,
-                            requiresPremium = true,
-                            paletteIndex = 3
-                        )
-                    )
-                    val metricFeatures = listOf(
-                        feature(
                             title = "Body Metrics",
                             subtitle = "Weight, measurements, and progress photos",
                             icon = DailyWellIcons.Health.Weight,
                             screen = Screen.BodyMetrics,
                             requiresPremium = true,
                             paletteIndex = 5
+                        )
+                    )
+                    val fullModeFeatures = listOf(
+                        feature(
+                            title = "Workout History",
+                            subtitle = "Review volume, progress, and previous sessions",
+                            icon = DailyWellIcons.Analytics.Pattern,
+                            screen = Screen.WorkoutHistory,
+                            requiresPremium = true,
+                            paletteIndex = 3
                         ),
                         feature(
                             title = "Biometrics",
@@ -204,30 +210,32 @@ fun TrackTabScreen(
                         contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        item {
-                            StaggeredItem(index = 0) {
-                                TrackHealthHubHero(
-                                    isPremium = isPremium,
-                                    quickActionsCount = quickActions.size,
-                                    moduleCount = 1 + mealFeatures.size + historyFeatures.size + metricFeatures.size + scanFeatures.size,
-                                    heroGradient = heroGradient
-                                )
+                        if (!simpleMode) {
+                            item {
+                                StaggeredItem(index = 0) {
+                                    TrackHealthHubHero(
+                                        isPremium = isPremium,
+                                        quickActionsCount = quickActions.size,
+                                        moduleCount = 1 + dailyEssentials.size + fullModeFeatures.size + scanFeatures.size,
+                                        heroGradient = heroGradient
+                                    )
+                                }
                             }
-                        }
 
-                        item {
-                            StaggeredItem(index = 1) {
-                                PremiumSectionChip(
-                                    text = "Quick actions",
-                                    icon = DailyWellIcons.Nav.ChevronRight
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                QuickActionsRow(
-                                    actions = quickActions,
-                                    isPremium = isPremium,
-                                    onNavigateToFeature = onNavigateToFeature,
-                                    onNavigateToPaywall = onNavigateToPaywall
-                                )
+                            item {
+                                StaggeredItem(index = 1) {
+                                    PremiumSectionChip(
+                                        text = "Quick actions",
+                                        icon = DailyWellIcons.Nav.ChevronRight
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    QuickActionsRow(
+                                        actions = quickActions,
+                                        isPremium = isPremium,
+                                        onNavigateToFeature = onNavigateToFeature,
+                                        onNavigateToPaywall = onNavigateToPaywall
+                                    )
+                                }
                             }
                         }
 
@@ -256,7 +264,7 @@ fun TrackTabScreen(
                             }
                         }
 
-                        itemsIndexed(mealFeatures) { index, feature ->
+                        itemsIndexed(dailyEssentials) { index, feature ->
                             StaggeredItem(index = index + 4) {
                                 FeatureCard(
                                     feature = feature,
@@ -267,63 +275,51 @@ fun TrackTabScreen(
                             }
                         }
 
-                        item {
-                            StaggeredItem(index = 6) {
-                                PremiumSectionChip(
-                                    text = "Progress & history",
-                                    icon = DailyWellIcons.Analytics.Pattern
-                                )
+                        if (!simpleMode) {
+                            item {
+                                StaggeredItem(index = 8) {
+                                    PremiumSectionChip(
+                                        text = "Progress & history",
+                                        icon = DailyWellIcons.Analytics.Pattern
+                                    )
+                                }
                             }
-                        }
 
-                        itemsIndexed(historyFeatures) { index, feature ->
-                            StaggeredItem(index = index + 7) {
-                                FeatureCard(
-                                    feature = feature,
-                                    isPremium = isPremium,
-                                    onNavigateToFeature = onNavigateToFeature,
-                                    onNavigateToPaywall = onNavigateToPaywall
-                                )
+                            itemsIndexed(fullModeFeatures) { index, feature ->
+                                StaggeredItem(index = index + 9) {
+                                    FeatureCard(
+                                        feature = feature,
+                                        isPremium = isPremium,
+                                        onNavigateToFeature = onNavigateToFeature,
+                                        onNavigateToPaywall = onNavigateToPaywall
+                                    )
+                                }
                             }
-                        }
 
-                        item {
-                            StaggeredItem(index = 9) {
-                                PremiumSectionChip(
-                                    text = "Body & recovery metrics",
-                                    icon = DailyWellIcons.Health.Weight
-                                )
+                            item {
+                                StaggeredItem(index = 12) {
+                                    PremiumSectionChip(
+                                        text = "Food tools (advanced)",
+                                        icon = DailyWellIcons.Health.FoodScan
+                                    )
+                                }
                             }
-                        }
 
-                        itemsIndexed(metricFeatures) { index, feature ->
-                            StaggeredItem(index = index + 10) {
-                                FeatureCard(
-                                    feature = feature,
-                                    isPremium = isPremium,
-                                    onNavigateToFeature = onNavigateToFeature,
-                                    onNavigateToPaywall = onNavigateToPaywall
-                                )
+                            itemsIndexed(scanFeatures) { index, feature ->
+                                StaggeredItem(index = index + 13) {
+                                    FeatureCard(
+                                        feature = feature,
+                                        isPremium = isPremium,
+                                        onNavigateToFeature = onNavigateToFeature,
+                                        onNavigateToPaywall = onNavigateToPaywall
+                                    )
+                                }
                             }
-                        }
-
-                        item {
-                            StaggeredItem(index = 12) {
-                                PremiumSectionChip(
-                                    text = "Food tools (advanced)",
-                                    icon = DailyWellIcons.Health.FoodScan
-                                )
-                            }
-                        }
-
-                        itemsIndexed(scanFeatures) { index, feature ->
-                            StaggeredItem(index = index + 13) {
-                                FeatureCard(
-                                    feature = feature,
-                                    isPremium = isPremium,
-                                    onNavigateToFeature = onNavigateToFeature,
-                                    onNavigateToPaywall = onNavigateToPaywall
-                                )
+                        } else {
+                            item {
+                                StaggeredItem(index = 8) {
+                                    SimpleModeHintCard()
+                                }
                             }
                         }
 
@@ -331,6 +327,37 @@ fun TrackTabScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SimpleModeHintCard() {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = ElevationLevel.Subtle,
+        cornerRadius = 18.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            PremiumSectionChip(
+                text = "Simple mode",
+                icon = DailyWellIcons.Actions.CheckCircle
+            )
+            Text(
+                text = "Food scanner, biometrics, and workout history are hidden to reduce noise.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Switch to Full mode from Today when you need advanced tools.",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
