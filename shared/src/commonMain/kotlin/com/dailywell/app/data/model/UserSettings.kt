@@ -1,5 +1,6 @@
 package com.dailywell.app.data.model
 
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -12,8 +13,12 @@ data class UserSettings(
     val startDate: String? = null, // ISO date when user started
     val hasCompletedOnboarding: Boolean = false,
     val isPremium: Boolean = false,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
     val customThresholds: Map<String, String> = emptyMap(), // habitId -> custom threshold
+
+    // User Profile
+    val userName: String? = null,
+    val selectedCoachPersona: String? = "Sam", // Default coach
 
     // Streak Protection (Premium Feature)
     val streakFreezesAvailable: Int = 2, // Resets monthly for premium users
@@ -28,7 +33,27 @@ data class UserSettings(
 
     // Health Connect
     val healthConnectEnabled: Boolean = false,
-    val lastHealthSyncDate: String? = null
+    val lastHealthSyncDate: String? = null,
+
+    // Proactive Notifications
+    val proactiveNotificationsEnabled: Boolean = true,
+
+    // Today screen density mode (anti-spam default)
+    val todayViewMode: TodayViewMode = TodayViewMode.SIMPLE,
+
+    // Onboarding personalization
+    val onboardingGoal: String? = null,       // Selected goal during onboarding
+    val assessmentScore: Int? = null,         // 1-5 scale from quick assessment
+
+    // Auth state
+    val hasCompletedAuth: Boolean = false,
+    val authSkipped: Boolean = false,
+    val userEmail: String? = null,
+    val authProvider: String = "none",
+    val isEmailVerified: Boolean = false,
+    val firebaseUid: String? = null,
+    val displayName: String? = null,
+    val photoUrl: String? = null
 ) {
     fun withHabitEnabled(habitId: String): UserSettings {
         if (enabledHabitIds.contains(habitId)) return this
@@ -40,7 +65,8 @@ data class UserSettings(
     }
 
     fun canAddMoreHabits(): Boolean {
-        val maxHabits = if (isPremium) 10 else 3
+        // UX/design pass: allow full habit visibility/editing for all users during dashboard redesign.
+        val maxHabits = if (isPremium) 12 else 12
         return enabledHabitIds.size < maxHabits
     }
 
@@ -80,22 +106,15 @@ data class UserSettings(
     }
 
     fun trialDaysRemaining(currentDate: String): Int {
-        val endDate = trialEndDate ?: return 0
+        val endDateStr = trialEndDate ?: return 0
         if (isPremium) return 0
-        // Parse dates and calculate difference (ISO format: YYYY-MM-DD)
-        try {
-            val currentParts = currentDate.split("-").map { it.toInt() }
-            val endParts = endDate.split("-").map { it.toInt() }
-            if (currentParts.size >= 3 && endParts.size >= 3) {
-                // Simple day difference calculation
-                val currentDay = currentParts[0] * 365 + currentParts[1] * 30 + currentParts[2]
-                val endDay = endParts[0] * 365 + endParts[1] * 30 + endParts[2]
-                return (endDay - currentDay).coerceAtLeast(0)
-            }
-        } catch (e: Exception) {
-            // Fallback
+        return try {
+            val today = LocalDate.parse(currentDate)
+            val end = LocalDate.parse(endDateStr)
+            (end.toEpochDays() - today.toEpochDays()).coerceAtLeast(0)
+        } catch (_: Exception) {
+            0
         }
-        return 0
     }
 
     /**
@@ -153,4 +172,10 @@ enum class ThemeMode {
     LIGHT,
     DARK,
     SYSTEM
+}
+
+@Serializable
+enum class TodayViewMode {
+    SIMPLE,
+    FULL
 }

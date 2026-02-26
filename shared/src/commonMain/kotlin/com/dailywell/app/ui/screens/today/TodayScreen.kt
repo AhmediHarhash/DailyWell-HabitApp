@@ -40,6 +40,7 @@ import com.dailywell.app.ai.SLMDownloadProgress
 import com.dailywell.app.data.model.ImplementationIntention
 import com.dailywell.app.data.model.MoodLevel
 import com.dailywell.app.data.model.ThemeMode
+import com.dailywell.app.data.model.TodayViewMode
 import com.dailywell.app.data.model.UserSettings
 import com.dailywell.app.data.repository.SettingsRepository
 import com.dailywell.app.domain.model.TimeOfDay
@@ -57,6 +58,7 @@ fun TodayScreen(
     onShareStreak: (String, String) -> Unit = { _, _ -> },  // shareText, imageDescription
     onNavigateToWater: () -> Unit = {},
     onNavigateToScan: () -> Unit = {},
+    onNavigateToInsights: () -> Unit = {},
     onNavigateToAICoach: () -> Unit = {},
     onNavigateToWorkout: () -> Unit = {},
     onNavigateToCustomHabit: () -> Unit = {},
@@ -182,7 +184,7 @@ fun TodayScreen(
                 )
             } else {
             val mode = uiState.layoutMode
-            val coreTrackerOnly = true
+            val coreTrackerOnly = settings.todayViewMode == TodayViewMode.SIMPLE
 
             LazyColumn(
                 modifier = Modifier
@@ -262,6 +264,22 @@ fun TodayScreen(
                             streakCount = uiState.streakInfo.currentStreak
                         )
                     }
+
+                    item(key = "today_view_mode_toggle") {
+                        TodayViewModeToggle(
+                            mode = settings.todayViewMode,
+                            onModeChange = { selectedMode ->
+                                uiScope.launch {
+                                    val currentSettings = settingsRepository.getSettingsSnapshot()
+                                    if (currentSettings.todayViewMode != selectedMode) {
+                                        settingsRepository.updateSettings(
+                                            currentSettings.copy(todayViewMode = selectedMode)
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
 
                 // ======================================================
@@ -281,123 +299,12 @@ fun TodayScreen(
                     }
                 }
 
-                // ======================================================
-                // AI Coach message: BUILDING + ESTABLISHED
-                // Personalized message from selected coach persona
-                // ======================================================
-                if (!coreTrackerOnly &&
-                    (mode == TodayLayoutMode.BUILDING || mode == TodayLayoutMode.ESTABLISHED) &&
-                    uiState.aiCoachMessage != null && uiState.showAICoachCard
-                ) {
-                    item(key = "ai_coach_card") {
-                        AICoachCard(
-                            message = uiState.aiCoachMessage!!,
-                            coachName = uiState.selectedCoach.name,
-                            coachAvatar = uiState.selectedCoach.avatar,
-                            onRefresh = { viewModel.refreshAICoachMessage() },
-                            onDismiss = { viewModel.toggleAICoachCard(false) }
-                        )
-                    }
-                }
-
-                // ======================================================
-                // Insight XOR Challenge: never both on the same day
-                // BUILDING: from day 2+. ESTABLISHED: always.
-                // ======================================================
-                val showContentCard = (mode == TodayLayoutMode.BUILDING && uiState.daysSinceOnboarding >= 2) ||
-                    mode == TodayLayoutMode.ESTABLISHED
-                if (!coreTrackerOnly && showContentCard && mode != TodayLayoutMode.DONE_FOR_TODAY) {
-                    if (uiState.showInsightToday) {
-                        // Insight day
-                        item(key = "daily_insight") {
-                            uiState.dailyInsight?.let { insight ->
-                                DailyInsightCard(
-                                    title = insight.title,
-                                    content = insight.content,
-                                    category = insight.categoryDisplayName,
-                                    source = insight.source,
-                                    isBookmarked = uiState.isInsightBookmarked,
-                                    onBookmarkClick = { viewModel.toggleInsightBookmark() }
-                                )
-                            }
-                        }
-                    } else {
-                        // Challenge day
-                        item(key = "daily_challenge") {
-                            uiState.dailyMicroChallenge?.let { challengeData ->
-                                DailyMicroChallengeCard(
-                                    title = challengeData.challenge.title,
-                                    description = challengeData.challenge.description,
-                                    category = challengeData.challenge.category.name.lowercase()
-                                        .replaceFirstChar { it.uppercase() },
-                                    duration = challengeData.challenge.duration,
-                                    difficulty = challengeData.challenge.difficulty.name.lowercase()
-                                        .replaceFirstChar { it.uppercase() },
-                                    isCompleted = uiState.isChallengeCompleted,
-                                    challengeStreak = uiState.challengeStreak,
-                                    onComplete = { viewModel.completeMicroChallenge() },
-                                    onSkip = { viewModel.skipMicroChallenge() }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ======================================================
-                // Date header + Mood: BUILDING (day 1+) and ESTABLISHED
-                // ======================================================
-                val showMood = (mode == TodayLayoutMode.BUILDING && uiState.daysSinceOnboarding >= 1) ||
-                    mode == TodayLayoutMode.ESTABLISHED
-                if (!coreTrackerOnly && showMood && mode != TodayLayoutMode.DONE_FOR_TODAY) {
-                    item(key = "date_header") {
-                        DateHeader(date = uiState.todayDate)
-                    }
-
-                    item(key = "mood_check") {
-                        MoodCheckCard(
-                            hasCheckedMood = uiState.hasCheckedMood,
-                            currentMood = uiState.currentMood,
-                            onMoodSelected = { mood -> viewModel.selectMood(mood) },
-                            onDismiss = { viewModel.dismissMoodCard() }
-                        )
-                    }
-
-                    if (uiState.hasCheckedMood && uiState.currentMood != null) {
-                        item(key = "mood_indicator") {
-                            MoodIndicator(mood = uiState.currentMood!!)
-                        }
-                    }
-                }
-
-                // ======================================================
-                // Social proof: ESTABLISHED only, during trial
-                // ======================================================
-                if (!coreTrackerOnly && mode == TodayLayoutMode.ESTABLISHED) {
-                    uiState.socialProofMessage?.let { message ->
-                        item(key = "social_proof") {
-                            SocialProofBanner(message = message)
-                        }
-                    }
-                }
-
-                // ======================================================
-                // Implementation Intention reminder: BUILDING + ESTABLISHED
-                // "When [situation], I will [action]" â€” context-aware nudge
-                // ======================================================
-                if (!coreTrackerOnly &&
-                    (mode == TodayLayoutMode.BUILDING || mode == TodayLayoutMode.ESTABLISHED) &&
-                    uiState.showIntentionReminder && uiState.currentIntentionToShow != null
-                ) {
-                    item(key = "intention_reminder") {
-                        IntentionReminderCard(
-                            intention = uiState.currentIntentionToShow!!,
-                            onDoIt = {
-                                viewModel.completeHabitFromIntention(
-                                    uiState.currentIntentionToShow!!.id,
-                                    uiState.currentIntentionToShow!!.habitId
-                                )
-                            },
-                            onDismiss = { viewModel.dismissIntentionReminder() }
+                if (mode != TodayLayoutMode.DONE_FOR_TODAY) {
+                    item(key = "extras_nav") {
+                        FocusedExtrasNavCard(
+                            isSimpleMode = coreTrackerOnly,
+                            onOpenInsights = onNavigateToInsights,
+                            onOpenCoach = onNavigateToAICoach
                         )
                     }
                 }
@@ -413,7 +320,7 @@ fun TodayScreen(
                     item(key = "today_plan_header") {
                         SectionEyebrow(
                             title = "Today's Plan",
-                            subtitle = "Tap each habit as you complete it",
+                            subtitle = "Check off completed habits",
                             accentIcon = DailyWellIcons.Habits.HabitStacking,
                             accentColor = Color(0xFF4A9E8F)
                         )
@@ -457,10 +364,12 @@ fun TodayScreen(
                 // ======================================================
                 // Week grid + Streak (hidden only on FIRST_SESSION)
                 // ======================================================
-                if (!coreTrackerOnly && mode != TodayLayoutMode.FIRST_SESSION) {
-                    item(key = "week_section") {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WeekSection(weekData = uiState.weekData)
+                if (mode != TodayLayoutMode.FIRST_SESSION) {
+                    if (!coreTrackerOnly) {
+                        item(key = "week_section") {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WeekSection(weekData = uiState.weekData)
+                        }
                     }
 
                     item(key = "streak_section") {
@@ -501,6 +410,88 @@ fun TodayScreen(
             LaunchedEffect(message) {
                 kotlinx.coroutines.delay(2000)
                 viewModel.dismissWaterSnackbar()
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayViewModeToggle(
+    mode: TodayViewMode,
+    onModeChange: (TodayViewMode) -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+        tonalElevation = 1.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "View mode",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = mode == TodayViewMode.SIMPLE,
+                    onClick = { onModeChange(TodayViewMode.SIMPLE) },
+                    label = { Text("Simple") }
+                )
+                FilterChip(
+                    selected = mode == TodayViewMode.FULL,
+                    onClick = { onModeChange(TodayViewMode.FULL) },
+                    label = { Text("Full") }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FocusedExtrasNavCard(
+    isSimpleMode: Boolean,
+    onOpenInsights: () -> Unit,
+    onOpenCoach: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+        tonalElevation = 1.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = if (isSimpleMode) "Extras are in tabs" else "More tools in tabs",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AssistChip(
+                    onClick = onOpenInsights,
+                    label = { Text("Open Insights") }
+                )
+                AssistChip(
+                    onClick = onOpenCoach,
+                    label = { Text("Open Coach") }
+                )
             }
         }
     }
