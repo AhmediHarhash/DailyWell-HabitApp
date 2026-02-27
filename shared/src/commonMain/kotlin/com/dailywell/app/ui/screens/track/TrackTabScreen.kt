@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,7 +48,6 @@ import com.dailywell.app.ui.components.GlassProgressBar
 import com.dailywell.app.ui.components.GlassScreenWrapper
 import com.dailywell.app.ui.components.PremiumActionTile
 import com.dailywell.app.ui.components.PremiumSectionChip
-import com.dailywell.app.ui.components.PremiumTabHeader
 import com.dailywell.app.ui.components.ShimmerLoadingScreen
 import com.dailywell.app.ui.components.StaggeredItem
 import com.dailywell.app.ui.navigation.Screen
@@ -92,13 +92,11 @@ fun TrackTabScreen(
             if (loading) {
                 ShimmerLoadingScreen(modifier = Modifier.fillMaxSize())
             } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    PremiumTabHeader(
-                        title = "Track",
-                        subtitle = if (simpleMode) "Simple mode: core logs only." else "Full mode: all tracking tools.",
-                        includeStatusBarPadding = true
-                    )
-
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                ) {
                     val quickActions = listOf(
                         QuickActionItem(
                             icon = DailyWellIcons.Health.Nutrition,

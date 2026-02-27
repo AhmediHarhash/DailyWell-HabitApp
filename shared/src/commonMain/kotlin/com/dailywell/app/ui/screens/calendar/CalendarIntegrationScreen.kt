@@ -84,7 +84,9 @@ data class TrackerExportPayload(
 private data class TrackerHeadlineStats(
     val completed: Int,
     val goal: Int,
-    val streakDays: Int
+    val streakDays: Int,
+    val activeHabits: Int,
+    val trackableDays: Int
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -158,7 +160,9 @@ fun CalendarIntegrationScreen(
                     TrackerHeadlineCard(
                         completed = trackerHeadline.completed,
                         goal = trackerHeadline.goal,
-                        streakDays = trackerHeadline.streakDays
+                        streakDays = trackerHeadline.streakDays,
+                        activeHabits = trackerHeadline.activeHabits,
+                        trackableDays = trackerHeadline.trackableDays
                     )
                 }
 
@@ -288,8 +292,13 @@ fun CalendarIntegrationScreen(
 private fun TrackerHeadlineCard(
     completed: Int,
     goal: Int,
-    streakDays: Int
+    streakDays: Int,
+    activeHabits: Int,
+    trackableDays: Int
 ) {
+    val completionPercent = remember(completed, goal) {
+        if (goal <= 0) 0 else ((completed.toFloat() / goal.toFloat()) * 100f).toInt().coerceIn(0, 100)
+    }
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -298,16 +307,22 @@ private fun TrackerHeadlineCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TrackerMetricChip(
-                modifier = Modifier.weight(1.2f),
+                modifier = Modifier.weight(1.25f),
                 label = "Completed / Goal",
                 value = "$completed/$goal",
-                hint = if (goal > 0) "Today through active days" else "No active goals"
+                hint = if (goal > 0) "$activeHabits habits x $trackableDays days" else "No active goals"
             )
             TrackerMetricChip(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(0.95f),
                 label = "Streak",
                 value = "${streakDays}d",
                 hint = "Longest current run"
+            )
+            TrackerMetricChip(
+                modifier = Modifier.weight(0.95f),
+                label = "Completion",
+                value = "$completionPercent%",
+                hint = "Across active days"
             )
         }
     }
@@ -334,7 +349,7 @@ private fun AdvancedCalendarCard(
         ) {
             Column {
                 Text(
-                    text = "Advanced Calendar Sync",
+                    text = "Calendar sync (optional)",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -345,7 +360,7 @@ private fun AdvancedCalendarCard(
                 )
             }
             TextButton(onClick = onToggleExpanded) {
-                Text(if (expanded) "Hide" else "Show")
+                Text(if (expanded) "Collapse" else "Expand")
             }
         }
     }
@@ -429,7 +444,9 @@ private fun calculateTrackerHeadline(uiState: CalendarUiState): TrackerHeadlineS
         TrackerHeadlineStats(
             completed = completed,
             goal = goal,
-            streakDays = streak
+            streakDays = streak,
+            activeHabits = uiState.monthlyHabitGrid.size,
+            trackableDays = trackableDates.size
         )
     } else {
         val trackableDates = uiState.weekDates.filter { date ->
@@ -446,7 +463,9 @@ private fun calculateTrackerHeadline(uiState: CalendarUiState): TrackerHeadlineS
         TrackerHeadlineStats(
             completed = completed,
             goal = goal,
-            streakDays = streak
+            streakDays = streak,
+            activeHabits = uiState.weeklyHabitGrid.size,
+            trackableDays = trackableDates.size
         )
     }
 }
@@ -717,6 +736,9 @@ fun WeeklyHabitGridCard(
             runCatching { LocalDate.parse(date) }.getOrNull()
         }
     }
+    val trackableDates = weekDates.filter { date ->
+        parsedDates[date]?.isAfter(today) != true
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -734,7 +756,7 @@ fun WeeklyHabitGridCard(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Weekly checkbox matrix",
+                text = "Weekly checkbox matrix - tap boxes to mark done",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -789,6 +811,13 @@ fun WeeklyHabitGridCard(
                             )
                         }
                     }
+                    Text(
+                        text = "Done",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(58.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -877,6 +906,17 @@ fun WeeklyHabitGridCard(
                                 )
                             }
                         }
+                        val rowCompleted = trackableDates.count { date ->
+                            row.completionsByDate[date] == true
+                        }
+                        val rowTarget = trackableDates.size
+                        Text(
+                            text = if (rowTarget == 0) "--" else "$rowCompleted/$rowTarget",
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.width(58.dp)
+                        )
                     }
                 }
 
@@ -911,6 +951,17 @@ fun WeeklyHabitGridCard(
                             modifier = Modifier.width(38.dp)
                         )
                     }
+                    val weeklyDone = rows.sumOf { row ->
+                        trackableDates.count { date -> row.completionsByDate[date] == true }
+                    }
+                    val weeklyTarget = rows.size * trackableDates.size
+                    Text(
+                        text = if (weeklyTarget == 0) "--" else "$weeklyDone/$weeklyTarget",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(58.dp)
+                    )
                 }
             }
         }
@@ -931,6 +982,9 @@ fun MonthlyHabitGridCard(
         monthDates.associateWith { date ->
             runCatching { LocalDate.parse(date) }.getOrNull()
         }
+    }
+    val trackableDates = monthDates.filter { date ->
+        parsedDates[date]?.isAfter(today) != true
     }
     val weekCount = remember(monthDates) {
         if (monthDates.isEmpty()) 0 else ((monthDates.size - 1) / 7) + 1
@@ -995,6 +1049,13 @@ fun MonthlyHabitGridCard(
                             modifier = Modifier.width(42.dp)
                         )
                     }
+                    Text(
+                        text = "Total",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(56.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1091,6 +1152,17 @@ fun MonthlyHabitGridCard(
                                 modifier = Modifier.width(42.dp)
                             )
                         }
+                        val rowCompleted = trackableDates.count { date ->
+                            row.completionsByDate[date] == true
+                        }
+                        val rowTarget = trackableDates.size
+                        Text(
+                            text = if (rowTarget == 0) "--" else "$rowCompleted/$rowTarget",
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.width(56.dp)
+                        )
                     }
                 }
 
@@ -1143,6 +1215,17 @@ fun MonthlyHabitGridCard(
                             modifier = Modifier.width(42.dp)
                         )
                     }
+                    val monthDone = rows.sumOf { row ->
+                        trackableDates.count { date -> row.completionsByDate[date] == true }
+                    }
+                    val monthTarget = rows.size * trackableDates.size
+                    Text(
+                        text = if (monthTarget == 0) "--" else "$monthDone/$monthTarget",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(56.dp)
+                    )
                 }
             }
         }

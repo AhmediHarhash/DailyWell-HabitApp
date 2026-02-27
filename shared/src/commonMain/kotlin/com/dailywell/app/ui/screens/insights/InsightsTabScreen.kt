@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,7 +42,6 @@ import com.dailywell.app.ui.components.GlassProgressBar
 import com.dailywell.app.ui.components.GlassScreenWrapper
 import com.dailywell.app.ui.components.PremiumActionTile
 import com.dailywell.app.ui.components.PremiumSectionChip
-import com.dailywell.app.ui.components.PremiumTabHeader
 import com.dailywell.app.ui.components.ShimmerLoadingScreen
 import com.dailywell.app.ui.components.StaggeredItem
 import com.dailywell.app.ui.navigation.Screen
@@ -86,17 +86,11 @@ fun InsightsTabScreen(
             if (loading) {
                 ShimmerLoadingScreen(modifier = Modifier.fillMaxSize())
             } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    PremiumTabHeader(
-                        title = "Insights",
-                        subtitle = if (simpleMode) {
-                            "Simple mode: momentum and one key signal."
-                        } else {
-                            "Pattern intelligence for smarter habits"
-                        },
-                        includeStatusBarPadding = true
-                    )
-
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
