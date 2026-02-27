@@ -336,7 +336,7 @@ fun MainNavigation(
                         BottomNavigationBar(
                             currentTab = currentTab,
                             onTabSelected = navigateToTab,
-                            onCenterFabClick = { navigateToTab(Screen.Track) }
+                            onCenterFabClick = { navigateToFeature(Screen.FoodScanning) }
                         )
                     }
                 ) { paddingValues ->
@@ -718,7 +718,7 @@ private fun BottomNavigationBar(
         GlassNavBar {
             bottomNavItems.forEachIndexed { index, item ->
                 if (index == 2) {
-                    // Center item - raised Track FAB
+                    // Center item - raised Scan FAB
                     CenterTrackFAB(
                         onClick = onCenterFabClick,
                         modifier = Modifier.weight(1f)
@@ -767,14 +767,14 @@ private fun CenterTrackFAB(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = DailyWellIcons.Nav.Track,
-                contentDescription = "Track",
+                imageVector = DailyWellIcons.Health.FoodScan,
+                contentDescription = "Scan",
                 modifier = Modifier.size(26.dp),
                 tint = Color.White
             )
         }
         Text(
-            text = "Track",
+            text = "Scan",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,
