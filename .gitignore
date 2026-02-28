@@ -98,3 +98,25 @@ screenshot*.png
 
 # Documentation files (generated separately)
 DAILYWELL_DOCUMENTATION.mdx
+
+# Local Android/Gradle sandbox folders
+.android/
+.android-home/
+.android-sdk-home/
+.gradle-cache/
+.gradle-home/
+.gradle-local/
+.gradle-sandbox/
+.gradle-user/
+.gradle-user-home/
+
+# Local tooling and generated QA artifacts
+smoke-artifacts/
+tmp/
+Microsoft/
+__pycache__/
+*.pyc
+
+# Accidental local files on Windows
+nul
+viewModel.toggleHabit(habit.id*
