@@ -12,7 +12,20 @@
           "package_name": "com.dailywell.android"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1085190175761-u8qgg0q7degf2tl958n2mj4pcd0uue5m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dailywell.android",
+            "certificate_hash": "6acb35d6602207f8d6c25ff6d061a2ba559097bf"
+          }
+        },
+        {
+          "client_id": "1085190175761-1u6nfvf9t4lu6ppg3ehsa3ppqldeodc4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAv24LU2x7CdbGrTEVdvHW0fkLqJtrerWk"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1085190175761-1u6nfvf9t4lu6ppg3ehsa3ppqldeodc4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

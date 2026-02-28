@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailywell.app.core.theme.Success
 import com.dailywell.app.data.model.*
+import com.dailywell.app.ui.components.*
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,135 +32,170 @@ fun HabitStackingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Habit Stacking",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text(text = "←", fontSize = 24.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                PremiumTopBar(
+                    title = "Habit Stacking",
+                    subtitle = "Build automatic chains",
+                    onNavigationClick = onBack
                 )
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Explanation card
-            item {
-                StackingExplanationCard()
             }
-
-            // Current stacks
-            if (uiState.activeStacks.isNotEmpty()) {
+        ) { paddingValues ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Explanation card
                 item {
-                    Text(
-                        text = "YOUR HABIT CHAINS",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                items(uiState.activeStacks) { stack ->
-                    ActiveStackCard(
-                        stack = stack,
-                        triggerHabit = uiState.habits.find { it.id == stack.triggerHabitId },
-                        targetHabit = uiState.habits.find { it.id == stack.targetHabitId },
-                        onToggle = { viewModel.toggleStack(stack.id) },
-                        onDelete = { viewModel.deleteStack(stack.id) }
-                    )
-                }
-            }
-
-            // Templates section
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "QUICK START TEMPLATES",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            item {
-                RoutineTemplateCard(
-                    title = "Morning Routine",
-                    emoji = "🌅",
-                    description = "Start your day with energy",
-                    templates = HabitStackTemplates.morningRoutineStacks,
-                    habits = uiState.habits,
-                    onApply = { viewModel.applyMorningRoutine() }
-                )
-            }
-
-            item {
-                RoutineTemplateCard(
-                    title = "Evening Routine",
-                    emoji = "🌙",
-                    description = "Wind down for better sleep",
-                    templates = HabitStackTemplates.eveningRoutineStacks,
-                    habits = uiState.habits,
-                    onApply = { viewModel.applyEveningRoutine() }
-                )
-            }
-
-            // Custom stack builder
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "BUILD YOUR OWN",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            item {
-                CustomStackBuilder(
-                    habits = uiState.habits,
-                    onCreateStack = { trigger, target, type ->
-                        viewModel.createCustomStack(trigger, target, type)
+                    StaggeredItem(index = 0) {
+                        StackingExplanationCard()
                     }
-                )
-            }
+                }
 
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
+                if (uiState.activeStacks.isEmpty()) {
+                    item {
+                        StaggeredItem(index = 1) {
+                            EmptyStacksCard()
+                        }
+                    }
+                }
+
+                // Current stacks
+                if (uiState.activeStacks.isNotEmpty()) {
+                    item {
+                        StaggeredItem(index = 1) {
+                            PremiumSectionChip(
+                                text = "Your habit chains",
+                                icon = DailyWellIcons.Habits.HabitStacking
+                            )
+                        }
+                    }
+
+                    items(uiState.activeStacks) { stack ->
+                        ActiveStackCard(
+                            stack = stack,
+                            triggerHabit = uiState.habits.find { it.id == stack.triggerHabitId },
+                            targetHabit = uiState.habits.find { it.id == stack.targetHabitId },
+                            onToggle = { viewModel.toggleStack(stack.id) },
+                            onDelete = { viewModel.deleteStack(stack.id) }
+                        )
+                    }
+                }
+
+                // Templates section
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PremiumSectionChip(
+                        text = "Quick start templates",
+                        icon = DailyWellIcons.Actions.CheckCircle
+                    )
+                }
+
+                item {
+                    StaggeredItem(index = 2) {
+                        RoutineTemplateCard(
+                            title = "Morning Routine",
+                            icon = DailyWellIcons.Misc.Sunrise,
+                            description = "Start your day with energy",
+                            templates = HabitStackTemplates.morningRoutineStacks,
+                            habits = uiState.habits,
+                            onApply = { viewModel.applyMorningRoutine() }
+                        )
+                    }
+                }
+
+                item {
+                    StaggeredItem(index = 3) {
+                        RoutineTemplateCard(
+                            title = "Evening Routine",
+                            icon = DailyWellIcons.Misc.Night,
+                            description = "Wind down for better sleep",
+                            templates = HabitStackTemplates.eveningRoutineStacks,
+                            habits = uiState.habits,
+                            onApply = { viewModel.applyEveningRoutine() }
+                        )
+                    }
+                }
+
+                // Custom stack builder
+                item {
+                    StaggeredItem(index = 4) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PremiumSectionChip(
+                            text = "Build your own",
+                            icon = DailyWellIcons.Actions.Add
+                        )
+                    }
+                }
+
+                item {
+                    StaggeredItem(index = 5) {
+                        CustomStackBuilder(
+                            habits = uiState.habits,
+                            onCreateStack = { trigger, target, type ->
+                                viewModel.createCustomStack(trigger, target, type)
+                            }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun StackingExplanationCard() {
-    Card(
+private fun EmptyStacksCard() {
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Subtle
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = DailyWellIcons.Habits.HabitStacking,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "No active chains yet. Start with a template or create one below.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun StackingExplanationCard() {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = ElevationLevel.Prominent
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "🔗", fontSize = 32.sp)
+                Icon(
+                    imageVector = DailyWellIcons.Habits.HabitStacking,
+                    contentDescription = "Habit Stacking",
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
@@ -206,14 +242,10 @@ private fun ActiveStackCard(
 ) {
     if (triggerHabit == null || targetHabit == null) return
 
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (stack.isEnabled)
-                MaterialTheme.colorScheme.surface
-            else
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+        elevation = ElevationLevel.Subtle,
+        enablePressScale = true
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -227,25 +259,26 @@ private fun ActiveStackCard(
                 ) {
                     // Trigger habit
                     HabitChip(
-                        emoji = triggerHabit.emoji,
+                        habitId = triggerHabit.id,
                         name = triggerHabit.name,
                         isEnabled = stack.isEnabled
                     )
 
                     // Arrow
-                    Text(
-                        text = when (stack.triggerType) {
-                            StackTriggerType.AFTER -> " → "
-                            StackTriggerType.BEFORE -> " ← "
-                            StackTriggerType.DURING -> " ↔ "
+                    Icon(
+                        imageVector = when (stack.triggerType) {
+                            StackTriggerType.AFTER -> DailyWellIcons.Nav.ArrowForward
+                            StackTriggerType.BEFORE -> DailyWellIcons.Nav.Back
+                            StackTriggerType.DURING -> DailyWellIcons.Analytics.Correlation
                         },
-                        style = MaterialTheme.typography.titleLarge,
-                        color = if (stack.isEnabled) Success else MaterialTheme.colorScheme.outline
+                        contentDescription = stack.triggerType.name,
+                        modifier = Modifier.size(24.dp),
+                        tint = if (stack.isEnabled) Success else MaterialTheme.colorScheme.outline
                     )
 
                     // Target habit
                     HabitChip(
-                        emoji = targetHabit.emoji,
+                        habitId = targetHabit.id,
                         name = targetHabit.name,
                         isEnabled = stack.isEnabled
                     )
@@ -291,7 +324,7 @@ private fun ActiveStackCard(
 
 @Composable
 private fun HabitChip(
-    emoji: String,
+    habitId: String,
     name: String,
     isEnabled: Boolean
 ) {
@@ -307,7 +340,15 @@ private fun HabitChip(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = emoji, fontSize = 16.sp)
+        Icon(
+            imageVector = DailyWellIcons.getHabitIcon(habitId),
+            contentDescription = name,
+            modifier = Modifier.size(16.dp),
+            tint = if (isEnabled)
+                MaterialTheme.colorScheme.onPrimaryContainer
+            else
+                MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = name,
@@ -323,17 +364,16 @@ private fun HabitChip(
 @Composable
 private fun RoutineTemplateCard(
     title: String,
-    emoji: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
     templates: List<HabitStackTemplates.StackTemplate>,
     habits: List<Habit>,
     onApply: () -> Unit
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        elevation = ElevationLevel.Subtle,
+        enablePressScale = true
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -342,7 +382,12 @@ private fun RoutineTemplateCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = emoji, fontSize = 24.sp)
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
@@ -380,11 +425,18 @@ private fun RoutineTemplateCard(
                 templates.forEachIndexed { index, template ->
                     val habit = habits.find { it.id == template.targetHabitId }
                     if (habit != null) {
-                        Text(text = habit.emoji, fontSize = 20.sp)
+                        Icon(
+                            imageVector = DailyWellIcons.getHabitIcon(habit.id),
+                            contentDescription = habit.name,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         if (index < templates.lastIndex) {
-                            Text(
-                                text = " → ",
-                                color = MaterialTheme.colorScheme.outline
+                            Icon(
+                                imageVector = DailyWellIcons.Nav.ArrowForward,
+                                contentDescription = "then",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.outline
                             )
                         }
                     }
@@ -405,11 +457,9 @@ private fun CustomStackBuilder(
     var showTriggerDropdown by remember { mutableStateOf(false) }
     var showTargetDropdown by remember { mutableStateOf(false) }
 
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        elevation = ElevationLevel.Medium
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -472,7 +522,12 @@ private fun CustomStackBuilder(
                     ) {
                         if (selectedTrigger != null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = selectedTrigger!!.emoji, fontSize = 20.sp)
+                                Icon(
+                                    imageVector = DailyWellIcons.getHabitIcon(selectedTrigger!!.id),
+                                    contentDescription = selectedTrigger!!.name,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = selectedTrigger!!.name)
                             }
@@ -482,7 +537,11 @@ private fun CustomStackBuilder(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Text(text = "▼")
+                        Icon(
+                            imageVector = DailyWellIcons.Nav.ExpandMore,
+                            contentDescription = "Expand",
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -494,7 +553,12 @@ private fun CustomStackBuilder(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = habit.emoji, fontSize = 20.sp)
+                                    Icon(
+                                        imageVector = DailyWellIcons.getHabitIcon(habit.id),
+                                        contentDescription = habit.name,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(text = habit.name)
                                 }
@@ -534,7 +598,12 @@ private fun CustomStackBuilder(
                     ) {
                         if (selectedTarget != null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = selectedTarget!!.emoji, fontSize = 20.sp)
+                                Icon(
+                                    imageVector = DailyWellIcons.getHabitIcon(selectedTarget!!.id),
+                                    contentDescription = selectedTarget!!.name,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = selectedTarget!!.name)
                             }
@@ -544,7 +613,11 @@ private fun CustomStackBuilder(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Text(text = "▼")
+                        Icon(
+                            imageVector = DailyWellIcons.Nav.ExpandMore,
+                            contentDescription = "Expand",
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -556,7 +629,12 @@ private fun CustomStackBuilder(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = habit.emoji, fontSize = 20.sp)
+                                    Icon(
+                                        imageVector = DailyWellIcons.getHabitIcon(habit.id),
+                                        contentDescription = habit.name,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(text = habit.name)
                                 }

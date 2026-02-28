@@ -3,13 +3,19 @@ package com.dailywell.app.data.model
 import kotlinx.serialization.Serializable
 
 /**
- * Family Plan Features
- * Allows up to 6 family members to share premium features
+ * Family Plan Features ($99.99/year for 3 members)
+ *
+ * Budget Distribution (Owner gets 3x each member):
+ * - Total monthly budget: $99.99/12 = $8.33/month
+ * - Owner (60%): $5.00/month (soft $4.50, hard $5.00)
+ * - Member 1 (20%): $1.67/month (soft $1.50, hard $1.67)
+ * - Member 2 (20%): $1.67/month (soft $1.50, hard $1.67)
  *
  * Key benefits:
- * - $8.33/person/year = exceptional value
+ * - Family accountability and shared challenges
+ * - Owner has 3x the AI budget of each member
  * - Creates viral growth through sharing
- * - Reduces churn through family accountability
+ * - Reduces churn through family connections
  */
 @Serializable
 data class FamilyPlanData(
@@ -20,7 +26,10 @@ data class FamilyPlanData(
     val sharedMilestones: List<FamilyMilestone> = emptyList(),
     val inviteCode: String? = null,
     val createdAt: String? = null,
-    val maxMembers: Int = 6
+    val maxMembers: Int = 3,  // 3 members max: Owner + 2 members
+    val monthlyBudgetUsd: Float = 8.33f,  // $99.99/year / 12 months
+    val ownerBudgetPercent: Float = 0.60f,  // 60% = $5.00 (3x member)
+    val memberBudgetPercent: Float = 0.20f  // 20% = $1.67 each
 )
 
 @Serializable

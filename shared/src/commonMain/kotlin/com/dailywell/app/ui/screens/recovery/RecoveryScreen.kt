@@ -8,23 +8,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailywell.app.data.model.*
-import com.dailywell.app.core.theme.Primary
-import com.dailywell.app.core.theme.PrimaryLight
-import com.dailywell.app.core.theme.Secondary
-import com.dailywell.app.core.theme.SecondaryLight
+import com.dailywell.app.ui.components.*
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -35,101 +31,129 @@ fun RecoveryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.9f)
-                .align(Alignment.Center),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                PremiumTopBar(
+                    title = "Recovery Reset",
+                    subtitle = "Rebuild momentum after a miss",
+                    onNavigationClick = onDismiss
+                )
+            }
+        ) { paddingValues ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp)
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.16f))
             ) {
-                // Progress indicator
-                RecoveryProgressBar(currentPhase = uiState.currentPhase)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Phase content
-                AnimatedContent(
-                    targetState = uiState.currentPhase,
-                    transitionSpec = {
-                        slideInHorizontally { it } + fadeIn() togetherWith
-                                slideOutHorizontally { -it } + fadeOut()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) { phase ->
-                    when (phase) {
-                        RecoveryPhase.ACKNOWLEDGE -> AcknowledgePhase(
-                            previousStreak = uiState.previousStreak,
-                            onSelectReason = { viewModel.selectReason(it) },
-                            selectedReason = uiState.selectedReason
-                        )
-                        RecoveryPhase.REFLECT -> ReflectPhase(
-                            selectedReason = uiState.selectedReason,
-                            reflectionAnswer = uiState.reflectionAnswer,
-                            onReflectionChange = { viewModel.setReflection(it) }
-                        )
-                        RecoveryPhase.RECOMMIT -> RecommitPhase(
-                            selectedCommitment = uiState.commitmentLevel,
-                            onSelectCommitment = { viewModel.setCommitmentLevel(it) }
-                        )
-                        RecoveryPhase.CELEBRATE -> CelebratePhase()
-                        RecoveryPhase.NONE -> Box(modifier = Modifier.fillMaxSize())
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Navigation buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                GlassCard(
+                    modifier = Modifier
+                        .fillMaxWidth(0.95f)
+                        .fillMaxHeight(0.9f)
+                        .align(Alignment.Center),
+                    elevation = ElevationLevel.Prominent
                 ) {
-                    if (uiState.currentPhase == RecoveryPhase.ACKNOWLEDGE) {
-                        TextButton(onClick = onDismiss) {
-                            Text("Not now", color = Color.Gray)
-                        }
-                    } else {
-                        TextButton(onClick = { viewModel.goBack() }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Back")
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            if (uiState.currentPhase == RecoveryPhase.CELEBRATE) {
-                                viewModel.completeRecovery()
-                                onComplete()
-                            } else {
-                                viewModel.advancePhase()
-                            }
-                        },
-                        enabled = viewModel.canAdvance(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Secondary
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp)
                     ) {
-                        Text(
-                            if (uiState.currentPhase == RecoveryPhase.CELEBRATE)
-                                "Back to Habits"
-                            else
-                                "Continue"
+                        PremiumSectionChip(
+                            text = "Recovery flow",
+                            icon = DailyWellIcons.Social.Cheer
                         )
-                        if (uiState.currentPhase != RecoveryPhase.CELEBRATE) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.ArrowForward, contentDescription = null)
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Reset with compassion, then recommit with a clear next step.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Progress indicator
+                        RecoveryProgressBar(currentPhase = uiState.currentPhase)
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Phase content
+                        AnimatedContent(
+                            targetState = uiState.currentPhase,
+                            transitionSpec = {
+                                slideInHorizontally { it } + fadeIn() togetherWith
+                                        slideOutHorizontally { -it } + fadeOut()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) { phase ->
+                            when (phase) {
+                                RecoveryPhase.ACKNOWLEDGE -> AcknowledgePhase(
+                                    previousStreak = uiState.previousStreak,
+                                    onSelectReason = { viewModel.selectReason(it) },
+                                    selectedReason = uiState.selectedReason
+                                )
+                                RecoveryPhase.REFLECT -> ReflectPhase(
+                                    selectedReason = uiState.selectedReason,
+                                    reflectionAnswer = uiState.reflectionAnswer,
+                                    onReflectionChange = { viewModel.setReflection(it) }
+                                )
+                                RecoveryPhase.RECOMMIT -> RecommitPhase(
+                                    selectedCommitment = uiState.commitmentLevel,
+                                    onSelectCommitment = { viewModel.setCommitmentLevel(it) }
+                                )
+                                RecoveryPhase.CELEBRATE -> CelebratePhase()
+                                RecoveryPhase.NONE -> Box(modifier = Modifier.fillMaxSize())
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Navigation buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            if (uiState.currentPhase == RecoveryPhase.ACKNOWLEDGE) {
+                                TextButton(onClick = onDismiss) {
+                                    Text("Not now", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            } else {
+                                TextButton(onClick = { viewModel.goBack() }) {
+                                    Icon(DailyWellIcons.Nav.Back, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Back")
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (uiState.currentPhase == RecoveryPhase.CELEBRATE) {
+                                        viewModel.completeRecovery()
+                                        onComplete()
+                                    } else {
+                                        viewModel.advancePhase()
+                                    }
+                                },
+                                enabled = viewModel.canAdvance(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    if (uiState.currentPhase == RecoveryPhase.CELEBRATE)
+                                        "Back to Habits"
+                                    else
+                                        "Continue"
+                                )
+                                if (uiState.currentPhase != RecoveryPhase.CELEBRATE) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(DailyWellIcons.Nav.ArrowForward, contentDescription = null)
+                                }
+                            }
                         }
                     }
                 }
@@ -167,24 +191,24 @@ private fun RecoveryProgressBar(currentPhase: RecoveryPhase) {
                         .clip(CircleShape)
                         .background(
                             when {
-                                isCompleted -> Secondary
-                                isCurrent -> PrimaryLight
-                                else -> Color.LightGray
+                                isCompleted -> MaterialTheme.colorScheme.primary
+                                isCurrent -> MaterialTheme.colorScheme.primaryContainer
+                                else -> MaterialTheme.colorScheme.outlineVariant
                             }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isCompleted) {
                         Icon(
-                            Icons.Default.Check,
+                            DailyWellIcons.Actions.Check,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.size(18.dp)
                         )
                     } else {
                         Text(
                             text = "${index + 1}",
-                            color = if (isCurrent) Secondary else Color.Gray,
+                            color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
@@ -194,7 +218,7 @@ private fun RecoveryProgressBar(currentPhase: RecoveryPhase) {
                 Text(
                     text = phase.title,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isCurrent || isCompleted) Secondary else Color.Gray,
+                    color = if (isCurrent || isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
                 )
             }
@@ -204,7 +228,7 @@ private fun RecoveryProgressBar(currentPhase: RecoveryPhase) {
                     modifier = Modifier
                         .weight(0.5f)
                         .height(2.dp)
-                        .background(if (isCompleted) Secondary else Color.LightGray)
+                        .background(if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
                 )
             }
         }
@@ -233,7 +257,7 @@ private fun AcknowledgePhase(
             Text(
                 text = RecoveryMessages.getAcknowledgmentMessage(),
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -241,7 +265,7 @@ private fun AcknowledgePhase(
             item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = PrimaryLight.copy(alpha = 0.3f)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -251,9 +275,11 @@ private fun AcknowledgePhase(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "🔥",
-                            fontSize = 28.sp
+                        Icon(
+                            imageVector = DailyWellIcons.Analytics.Streak,
+                            contentDescription = "Streak",
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
@@ -264,7 +290,7 @@ private fun AcknowledgePhase(
                             Text(
                                 text = "That progress still counts",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -289,14 +315,14 @@ private fun AcknowledgePhase(
                     .clickable { onSelectReason(reason) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (isSelected)
-                        Secondary.copy(alpha = 0.1f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     else
-                        Color.LightGray.copy(alpha = 0.3f)
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                 ),
                 shape = RoundedCornerShape(12.dp),
                 border = if (isSelected)
                     CardDefaults.outlinedCardBorder().copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(Secondary)
+                        brush = SolidColor(MaterialTheme.colorScheme.primary)
                     )
                 else null
             ) {
@@ -306,9 +332,11 @@ private fun AcknowledgePhase(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = reason.emoji,
-                        fontSize = 24.sp
+                    Icon(
+                        imageVector = getStreakBreakReasonIcon(reason),
+                        contentDescription = reason.label,
+                        modifier = Modifier.size(24.dp),
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -320,15 +348,15 @@ private fun AcknowledgePhase(
                             Text(
                                 text = reason.normalizer,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Secondary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                     if (isSelected) {
                         Icon(
-                            Icons.Default.CheckCircle,
+                            DailyWellIcons.Actions.CheckCircle,
                             contentDescription = null,
-                            tint = Secondary
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -357,7 +385,7 @@ private fun ReflectPhase(
         Text(
             text = RecoveryMessages.getReflectionPrompt(),
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -366,7 +394,7 @@ private fun ReflectPhase(
         if (selectedReason != null) {
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFF8E1)
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -374,7 +402,12 @@ private fun ReflectPhase(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.Top
                 ) {
-                    Text(text = "💡", fontSize = 20.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.Onboarding.Philosophy,
+                        contentDescription = "Insight",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = selectedReason.normalizer,
@@ -409,7 +442,7 @@ private fun ReflectPhase(
         Text(
             text = "Tip: Even thinking about this question builds self-awareness.",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -433,7 +466,7 @@ private fun RecommitPhase(
         Text(
             text = RecoveryMessages.getRecommitmentMessage(),
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -455,9 +488,9 @@ private fun RecommitPhase(
                     .clickable { onSelectCommitment(level) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (isSelected)
-                        Secondary.copy(alpha = 0.1f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     else
-                        Color.LightGray.copy(alpha = 0.3f)
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -471,7 +504,7 @@ private fun RecommitPhase(
                         selected = isSelected,
                         onClick = { onSelectCommitment(level) },
                         colors = RadioButtonDefaults.colors(
-                            selectedColor = Secondary
+                            selectedColor = MaterialTheme.colorScheme.primary
                         )
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -483,7 +516,7 @@ private fun RecommitPhase(
                         Text(
                             text = level.description,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -494,7 +527,7 @@ private fun RecommitPhase(
 
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = PrimaryLight.copy(alpha = 0.3f)
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             ),
             shape = RoundedCornerShape(12.dp)
         ) {
@@ -518,9 +551,11 @@ private fun CelebratePhase() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "🎉",
-            fontSize = 64.sp
+        Icon(
+            imageVector = DailyWellIcons.Social.Cheer,
+            contentDescription = "Celebration",
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -537,7 +572,7 @@ private fun CelebratePhase() {
         Text(
             text = RecoveryMessages.getCelebrationMessage(),
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
@@ -546,7 +581,7 @@ private fun CelebratePhase() {
 
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = Secondary.copy(alpha = 0.1f)
+                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             ),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -557,23 +592,39 @@ private fun CelebratePhase() {
                 Text(
                     text = "Your superpower:",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Resilience",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Secondary
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = "Coming back is harder than staying. You did it.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
+    }
+}
+
+/**
+ * Maps StreakBreakReason enum values to appropriate Material Icons
+ */
+private fun getStreakBreakReasonIcon(reason: StreakBreakReason): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (reason) {
+        StreakBreakReason.BUSY_DAY -> DailyWellIcons.Habits.Move
+        StreakBreakReason.FORGOT -> DailyWellIcons.Coaching.Reflection
+        StreakBreakReason.SICK -> DailyWellIcons.Health.Temperature
+        StreakBreakReason.TRAVELING -> DailyWellIcons.Misc.Location
+        StreakBreakReason.OVERWHELMED -> DailyWellIcons.Mood.Struggling
+        StreakBreakReason.LOW_ENERGY -> DailyWellIcons.Gamification.XP
+        StreakBreakReason.SOCIAL -> DailyWellIcons.Social.People
+        StreakBreakReason.OTHER -> DailyWellIcons.Misc.Sparkle
     }
 }

@@ -3,4 +3,22 @@
     <string name="app_name">DailyWell</string>
     <string name="widget_description">Track your daily habits with one tap</string>
     <string name="widget_name">DailyWell Habits</string>
+    <string name="widget_loading_title">DailyWell</string>
+    <string name="widget_loading_subtitle">Loading&#8230;</string>
+
+    <!-- Voice Shortcut Labels for Google Assistant -->
+    <string name="shortcut_log_sleep">Log sleep</string>
+    <string name="shortcut_log_sleep_long">Log my sleep habit</string>
+    <string name="shortcut_log_water">Log water</string>
+    <string name="shortcut_log_water_long">Log my water intake</string>
+    <string name="shortcut_log_move">Log exercise</string>
+    <string name="shortcut_log_move_long">Log my exercise habit</string>
+    <string name="shortcut_log_vegetables">Log vegetables</string>
+    <string name="shortcut_log_vegetables_long">Log my vegetables habit</string>
+    <string name="shortcut_log_calm">Log calm</string>
+    <string name="shortcut_log_calm_long">Log my calm meditation habit</string>
+    <string name="shortcut_log_connect">Log connect</string>
+    <string name="shortcut_log_connect_long">Log my social connection habit</string>
+    <string name="shortcut_log_unplug">Log unplug</string>
+    <string name="shortcut_log_unplug_long">Log my unplug habit</string>
 </resources>

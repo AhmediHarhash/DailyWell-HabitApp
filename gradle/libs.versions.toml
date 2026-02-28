@@ -19,11 +19,27 @@ health-connect = "1.1.0-alpha10"
 glance = "1.1.1"
 # Firebase
 firebase-bom = "33.7.0"
+firebase-gitlive = "2.1.0"
 gms-google-services = "4.4.2"
+# Credential Manager (Google Sign-In 2026)
+credentials = "1.5.0-beta01"
+googleid = "1.1.1"
 # Networking (for Claude/Cartesia API)
 ktor = "3.0.2"
 # Media (for TTS playback)
 media3 = "1.5.0"
+# CameraX (for scanning)
+camerax = "1.4.1"
+# ML Kit (for barcode scanning)
+mlkit-barcode = "17.3.0"
+mlkit-text = "16.0.1"
+# Coil (for image loading)
+coil = "2.7.0"
+# Accompanist (permissions + utilities)
+accompanist = "0.34.0"
+androidx-test-core = "1.6.1"
+androidx-test-ext-junit = "1.2.1"
+androidx-test-runner = "1.6.2"
 
 [libraries]
 # AndroidX
@@ -76,6 +92,14 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
+firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx" }
+# Credential Manager (Google Sign-In)
+credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+# GitLive Firebase (KMP multiplatform Firebase)
+firebase-gitlive-firestore = { group = "dev.gitlive", name = "firebase-firestore", version.ref = "firebase-gitlive" }
+firebase-gitlive-auth = { group = "dev.gitlive", name = "firebase-auth", version.ref = "firebase-gitlive" }
 
 # Ktor (HTTP client for Claude/Cartesia APIs)
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
@@ -87,6 +111,27 @@ ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version
 # Media3 (for TTS audio playback)
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+
+# CameraX (for food scanning)
+camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+
+# ML Kit (barcode scanning - FREE, on-device)
+mlkit-barcode = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
+mlkit-text = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkit-text" }
+
+# Coil (image loading)
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Accompanist (permissions)
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
+
+# Android instrumented testing
+androidx-test-core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "androidx-test-core" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test-runner" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

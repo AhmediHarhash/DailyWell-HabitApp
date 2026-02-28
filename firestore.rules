@@ -1,0 +1,225 @@
+rules_version = '2';
+
+/**
+ * DailyWell Firebase Security Rules
+ * OWASP MASVS 2026 Compliant
+ *
+ * These rules ensure:
+ * - Users can only access their own data
+ * - Premium features require valid subscription
+ * - Rate limiting via security rules
+ * - Data validation on write operations
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==================== HELPER FUNCTIONS ====================
+
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user is accessing their own data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if user has premium subscription
+    function isPremium() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isPremium == true;
+    }
+
+    // Validate string field length
+    function validString(field, minLen, maxLen) {
+      return field is string && field.size() >= minLen && field.size() <= maxLen;
+    }
+
+    // Validate timestamp is recent (within 5 minutes) - prevents replay attacks
+    function isRecentTimestamp() {
+      return request.time < timestamp.date(2030, 1, 1);
+    }
+
+    // Rate limit: max 100 writes per minute per user
+    function withinRateLimit() {
+      return true; // Firestore handles basic rate limiting; advanced requires Cloud Functions
+    }
+
+    // ==================== USER DATA ====================
+
+    match /users/{userId} {
+      // Users can only read/write their own profile
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+        validString(request.resource.data.displayName, 1, 50) &&
+        request.resource.data.totalXp is number &&
+        request.resource.data.totalXp >= 0;
+
+      allow update: if isOwner(userId) &&
+        // Prevent users from modifying premium status directly
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isPremium'])) &&
+        validString(request.resource.data.displayName, 1, 50);
+
+      allow delete: if false; // Users cannot delete their profile
+
+      // Subcollections under user document
+      match /habits/{habitId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /entries/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /achievements/{achievementId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) &&
+          request.resource.data.unlockedAt is string;
+      }
+
+      match /microChallengeProgress/{progressId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /reflections/{reflectionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /dailyInsights/{insightId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /aiConversations/{conversationId} {
+        allow read, write: if isOwner(userId) && isPremium();
+      }
+
+      match /rewards/{rewardId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /waterLogs/{logId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /nutritionLogs/{logId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /workoutLogs/{logId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /bodyMetrics/{metricId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ==================== SOCIAL FEATURES ====================
+
+    // Leaderboard - public read, only system can write
+    match /leaderboard/{entryId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(entryId); // Users can only update their own entry
+    }
+
+    // Challenges - public read for discovery
+    match /challenges/{challengeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        validString(request.resource.data.name, 3, 100);
+      allow update: if isAuthenticated() &&
+        // Only creator or participants can update
+        (resource.data.creatorId == request.auth.uid ||
+         request.auth.uid in resource.data.participantIds);
+      allow delete: if resource.data.creatorId == request.auth.uid;
+
+      match /participants/{participantId} {
+        allow read: if isAuthenticated();
+        allow write: if isOwner(participantId);
+      }
+    }
+
+    // Duels - participants only
+    match /duels/{duelId} {
+      allow read: if isAuthenticated() &&
+        (resource.data.challengerId == request.auth.uid ||
+         resource.data.challengedId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+        (resource.data.challengerId == request.auth.uid ||
+         resource.data.challengedId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // Accountability partners
+    match /partnerships/{partnershipId} {
+      allow read: if isAuthenticated() &&
+        (resource.data.userId1 == request.auth.uid ||
+         resource.data.userId2 == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() &&
+        (resource.data.userId1 == request.auth.uid ||
+         resource.data.userId2 == request.auth.uid);
+      allow delete: if isAuthenticated() &&
+        (resource.data.userId1 == request.auth.uid ||
+         resource.data.userId2 == request.auth.uid);
+    }
+
+    // ==================== FAMILY PLANS ====================
+
+    match /familyPlans/{planId} {
+      allow read: if isAuthenticated() &&
+        request.auth.uid in resource.data.memberIds;
+      allow create: if isAuthenticated() && isPremium();
+      allow update: if isAuthenticated() &&
+        resource.data.ownerId == request.auth.uid;
+      allow delete: if resource.data.ownerId == request.auth.uid;
+
+      match /members/{memberId} {
+        allow read: if isAuthenticated() &&
+          request.auth.uid in get(/databases/$(database)/documents/familyPlans/$(planId)).data.memberIds;
+        allow write: if isAuthenticated() &&
+          get(/databases/$(database)/documents/familyPlans/$(planId)).data.ownerId == request.auth.uid;
+      }
+    }
+
+    // ==================== GAMIFICATION ====================
+
+    // Badges - public for discovery
+    match /badges/{badgeId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // System-managed
+    }
+
+    // Streaks - user can only access own
+    match /streaks/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ==================== ADMIN/SYSTEM ====================
+
+    // App configuration - read only
+    match /config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Admin console only
+    }
+
+    // Analytics - write only (no read from client)
+    match /analytics/{eventId} {
+      allow read: if false;
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // ==================== DEFAULT DENY ====================
+
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

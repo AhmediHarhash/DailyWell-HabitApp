@@ -1,14 +1,12 @@
 package com.dailywell.app.ui.screens.reminders
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,10 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailywell.app.data.model.*
-import com.dailywell.app.core.theme.Primary
-import com.dailywell.app.core.theme.PrimaryLight
-import com.dailywell.app.core.theme.Secondary
-import com.dailywell.app.core.theme.SecondaryLight
+import com.dailywell.app.ui.components.*
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,76 +28,113 @@ fun SmartRemindersScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Smart Reminders") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text(text = "←", fontSize = 24.sp)
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                PremiumTopBar(
+                    title = "Smart Reminders",
+                    subtitle = "Adaptive reminder timing",
+                    onNavigationClick = onBack
+                )
+            }
+        ) { paddingValues ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Explanation Card
+                item {
+                    StaggeredItem(index = 0) {
+                        SmartRemindersExplanationCard()
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Explanation Card
-            item {
-                SmartRemindersExplanationCard()
-            }
+                }
 
-            // Global Toggle
-            item {
-                GlobalReminderToggle(
-                    isEnabled = uiState.isGlobalEnabled,
-                    onToggle = { viewModel.toggleGlobalReminders() }
-                )
-            }
+                // Global Toggle
+                item {
+                    StaggeredItem(index = 1) {
+                        GlobalReminderToggle(
+                            isEnabled = uiState.isGlobalEnabled,
+                            onToggle = { viewModel.toggleGlobalReminders() }
+                        )
+                    }
+                }
 
-            // Habit-specific reminder settings
-            item {
-                Text(
-                    text = "Habit Reminders",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+                // Habit-specific reminder settings
+                item {
+                    StaggeredItem(index = 2) {
+                        PremiumSectionChip(
+                            text = "Habit reminders",
+                            icon = DailyWellIcons.Habits.SmartReminders,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
 
-            items(uiState.habitSettings) { settings ->
-                HabitReminderCard(
-                    habitId = settings.habitId,
-                    settings = settings,
-                    onToggle = { viewModel.toggleHabitReminder(settings.habitId) },
-                    onTimeChange = { time -> viewModel.setPreferredTime(settings.habitId, time) },
-                    onToneChange = { tone -> viewModel.setReminderTone(settings.habitId, tone) },
-                    onFrequencyChange = { freq -> viewModel.setReminderFrequency(settings.habitId, freq) }
-                )
-            }
+                if (uiState.habitSettings.isEmpty()) {
+                    item {
+                        EmptyReminderSettingsCard()
+                    }
+                } else {
+                    items(uiState.habitSettings) { settings ->
+                        HabitReminderCard(
+                            habitId = settings.habitId,
+                            settings = settings,
+                            onToggle = { viewModel.toggleHabitReminder(settings.habitId) },
+                            onTimeChange = { time -> viewModel.setPreferredTime(settings.habitId, time) },
+                            onToneChange = { tone -> viewModel.setReminderTone(settings.habitId, tone) },
+                            onFrequencyChange = { freq -> viewModel.setReminderFrequency(settings.habitId, freq) }
+                        )
+                    }
+                }
 
-            // Science explanation
-            item {
-                SmartTimingExplanation()
+                // Science explanation
+                item {
+                    StaggeredItem(index = 3) {
+                        SmartTimingExplanation()
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SmartRemindersExplanationCard() {
-    Card(
+private fun EmptyReminderSettingsCard() {
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = PrimaryLight.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Subtle
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = DailyWellIcons.Habits.SmartReminders,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "No habit reminders yet. Add habits first, then tune reminder timing here.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun SmartRemindersExplanationCard() {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = ElevationLevel.Prominent
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -111,9 +143,9 @@ private fun SmartRemindersExplanationCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.Notifications,
+                    DailyWellIcons.Habits.SmartReminders,
                     contentDescription = null,
-                    tint = Secondary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -136,12 +168,21 @@ private fun SmartRemindersExplanationCard() {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "📊 Reminders timed to activity windows work 3x better",
-                style = MaterialTheme.typography.bodySmall,
-                color = Secondary,
-                fontWeight = FontWeight.Medium
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = DailyWellIcons.Analytics.BarChart,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Reminders timed to activity windows work 3x better",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -151,9 +192,9 @@ private fun GlobalReminderToggle(
     isEnabled: Boolean,
     onToggle: () -> Unit
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Row(
             modifier = Modifier
@@ -164,9 +205,9 @@ private fun GlobalReminderToggle(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Default.Notifications,
+                    DailyWellIcons.Habits.SmartReminders,
                     contentDescription = null,
-                    tint = if (isEnabled) Secondary else Color.Gray
+                    tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -178,7 +219,7 @@ private fun GlobalReminderToggle(
                     Text(
                         text = if (isEnabled) "Active" else "Paused",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isEnabled) Secondary else Color.Gray
+                        color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -187,8 +228,8 @@ private fun GlobalReminderToggle(
                 checked = isEnabled,
                 onCheckedChange = { onToggle() },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Secondary
+                    checkedThumbColor = MaterialTheme.colorScheme.surface,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -211,11 +252,11 @@ private fun HabitReminderCard(
 
     val habitInfo = getHabitInfo(habitId)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(12.dp)
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = ElevationLevel.Subtle,
+        enablePressScale = true,
+        onClick = { expanded = !expanded }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -227,9 +268,11 @@ private fun HabitReminderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = habitInfo.first,
-                        style = MaterialTheme.typography.titleMedium
+                    Icon(
+                        imageVector = DailyWellIcons.getHabitIcon(habitId),
+                        contentDescription = habitInfo.second,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -243,100 +286,115 @@ private fun HabitReminderCard(
                     checked = settings.isEnabled,
                     onCheckedChange = { onToggle() },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Secondary
+                        checkedThumbColor = MaterialTheme.colorScheme.surface,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
 
-            if (settings.isEnabled && expanded) {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(16.dp))
+            AnimatedVisibility(
+                visible = settings.isEnabled && expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Preferred Time
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showTimePicker = true }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = Color.Gray
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("Preferred Time", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Text(
-                        text = settings.preferredTime ?: "Smart timing",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Secondary
-                    )
-                }
-
-                // Tone
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showTonePicker = true }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Reminder Tone", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text = "${settings.tone.emoji} ${settings.tone.description}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Secondary
-                    )
-                }
-
-                // Frequency
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showFrequencyPicker = true }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Frequency", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text = settings.frequency.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Secondary
-                    )
-                }
-
-                // Smart timing indicator
-                if (settings.smartTimingEnabled) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // Preferred Time
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(PrimaryLight.copy(alpha = 0.2f))
-                            .padding(12.dp),
+                            .clickable { showTimePicker = true }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Secondary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                DailyWellIcons.Habits.SmartReminders,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Preferred Time", style = MaterialTheme.typography.bodyMedium)
+                        }
                         Text(
-                            text = "Learning your patterns...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Secondary
+                            text = settings.preferredTime ?: "Smart timing",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
+                    }
+
+                    // Tone
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showTonePicker = true }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Reminder Tone", style = MaterialTheme.typography.bodyMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = getReminderToneIcon(settings.tone),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = settings.tone.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    // Frequency
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showFrequencyPicker = true }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Frequency", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = settings.frequency.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    // Smart timing indicator
+                    if (settings.smartTimingEnabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                DailyWellIcons.Habits.SmartReminders,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Learning your patterns...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
@@ -382,25 +440,33 @@ private fun HabitReminderCard(
 
 @Composable
 private fun SmartTimingExplanation() {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = "🧠 How Smart Timing Works",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = DailyWellIcons.Coaching.AICoach,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "How Smart Timing Works",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Your reminders learn from your behavior:\n" +
-                        "• When you typically complete each habit\n" +
-                        "• What times you're most active\n" +
-                        "• How quickly you respond to nudges\n\n" +
+                        "- When you typically complete each habit\n" +
+                        "- What times you're most active\n" +
+                        "- How quickly you respond to nudges\n\n" +
                         "Over time, reminders arrive at your optimal moments.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -485,8 +551,15 @@ private fun TonePickerDialog(
                             selected = tone == currentTone,
                             onClick = { onSelect(tone) }
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("${tone.emoji} ${tone.description}")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = getReminderToneIcon(tone),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(tone.description)
                     }
                 }
             }
@@ -538,13 +611,23 @@ private fun FrequencyPickerDialog(
 
 private fun getHabitInfo(habitId: String): Pair<String, String> {
     return when (habitId) {
-        "sleep" -> "🌙" to "Rest"
-        "water" -> "💧" to "Hydrate"
-        "move" -> "🏃" to "Move"
-        "vegetables" -> "🥗" to "Nourish"
-        "calm" -> "🧘" to "Calm"
-        "connect" -> "💬" to "Connect"
-        "unplug" -> "📴" to "Unplug"
-        else -> "✨" to habitId.replaceFirstChar { it.uppercase() }
+        "sleep" -> habitId to "Rest"
+        "water" -> habitId to "Hydrate"
+        "move" -> habitId to "Move"
+        "vegetables" -> habitId to "Nourish"
+        "calm" -> habitId to "Calm"
+        "connect" -> habitId to "Connect"
+        "unplug" -> habitId to "Unplug"
+        else -> habitId to habitId.replaceFirstChar { it.uppercase() }
+    }
+}
+
+private fun getReminderToneIcon(tone: ReminderTone): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (tone) {
+        ReminderTone.GENTLE -> DailyWellIcons.Onboarding.Welcome
+        ReminderTone.ENCOURAGING -> DailyWellIcons.Health.Workout
+        ReminderTone.PLAYFUL -> DailyWellIcons.Habits.Intentions
+        ReminderTone.DIRECT -> DailyWellIcons.Social.Contract
+        ReminderTone.SCIENCE -> DailyWellIcons.Coaching.AICoach
     }
 }

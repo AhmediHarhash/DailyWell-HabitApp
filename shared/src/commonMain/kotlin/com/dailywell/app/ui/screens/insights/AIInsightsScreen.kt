@@ -1,4 +1,4 @@
-package com.dailywell.app.ui.screens.insights
+﻿package com.dailywell.app.ui.screens.insights
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailywell.app.data.model.CorrelationType
@@ -31,6 +32,10 @@ import com.dailywell.app.core.theme.Primary
 import com.dailywell.app.core.theme.PrimaryLight
 import com.dailywell.app.core.theme.Secondary
 import com.dailywell.app.core.theme.SecondaryLight
+import com.dailywell.app.ui.components.DailyWellIcons
+import com.dailywell.app.ui.components.GlassScreenWrapper
+import com.dailywell.app.ui.components.PremiumSectionChip
+import com.dailywell.app.ui.components.PremiumTopBar
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,36 +46,34 @@ fun AIInsightsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("AI Insights") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text(text = "←", fontSize = 24.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                PremiumTopBar(
+                    title = "AI Insights",
+                    subtitle = "Pattern analysis and correlations",
+                    onNavigationClick = onBack
                 )
-            )
-        }
-    ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Secondary)
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+        ) { paddingValues ->
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Secondary)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 // Header explanation
                 item {
                     AIInsightsHeader()
@@ -95,10 +98,9 @@ fun AIInsightsScreen(
                     }
                 } else {
                     item {
-                        Text(
-                            text = "Your Insights",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                        PremiumSectionChip(
+                            text = "Your insights",
+                            icon = DailyWellIcons.Analytics.Pattern
                         )
                     }
 
@@ -115,10 +117,9 @@ fun AIInsightsScreen(
                 if (uiState.correlations.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Discovered Correlations",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                        PremiumSectionChip(
+                            text = "Discovered correlations",
+                            icon = DailyWellIcons.Analytics.Correlation
                         )
                     }
 
@@ -133,6 +134,7 @@ fun AIInsightsScreen(
                 }
             }
         }
+    }
     }
 
     // Insight detail dialog
@@ -157,9 +159,11 @@ private fun AIInsightsHeader() {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "🧠",
-                    fontSize = 28.sp
+                Icon(
+                    imageVector = DailyWellIcons.Coaching.AICoach,
+                    contentDescription = "AI Analysis",
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
@@ -248,9 +252,11 @@ private fun WeeklyReportCard(report: WeeklyInsightReport) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (report.comparedToLastWeek >= 0) "📈" else "📉",
-                            fontSize = 16.sp
+                        Icon(
+                            imageVector = if (report.comparedToLastWeek >= 0) DailyWellIcons.Analytics.TrendUp else DailyWellIcons.Analytics.TrendDown,
+                            contentDescription = if (report.comparedToLastWeek >= 0) "Trending up" else "Trending down",
+                            modifier = Modifier.size(16.dp),
+                            tint = if (report.comparedToLastWeek >= 0) Primary else Color(0xFFE57373)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -262,18 +268,36 @@ private fun WeeklyReportCard(report: WeeklyInsightReport) {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = "🏆 ${report.topAchievement}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = DailyWellIcons.Gamification.Trophy,
+                            contentDescription = "Top achievement",
+                            modifier = Modifier.size(14.dp),
+                            tint = Secondary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = report.topAchievement,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = "🎯 Focus: ${report.nextWeekFocus}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = DailyWellIcons.Habits.Intentions,
+                            contentDescription = "Focus",
+                            modifier = Modifier.size(14.dp),
+                            tint = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Focus: ${report.nextWeekFocus}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
         }
@@ -338,9 +362,11 @@ private fun InsightCard(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = insight.emoji,
-                        fontSize = 24.sp
+                    Icon(
+                        imageVector = getInsightTypeIcon(insight.type),
+                        contentDescription = insight.type.label,
+                        modifier = Modifier.size(24.dp),
+                        tint = Secondary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
@@ -388,9 +414,11 @@ private fun InsightCard(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "💡",
-                        fontSize = 16.sp
+                    Icon(
+                        imageVector = DailyWellIcons.Onboarding.Philosophy,
+                        contentDescription = "Recommendation",
+                        modifier = Modifier.size(16.dp),
+                        tint = Secondary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -440,9 +468,11 @@ private fun CorrelationCard(correlation: HabitCorrelation) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "🔗",
-                    fontSize = 20.sp
+                Icon(
+                    imageVector = DailyWellIcons.Analytics.Correlation,
+                    contentDescription = "Correlation",
+                    modifier = Modifier.size(20.dp),
+                    tint = Secondary
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
@@ -475,16 +505,14 @@ private fun CorrelationCard(correlation: HabitCorrelation) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Text(
-                    text = when (correlation.correlationType) {
-                        CorrelationType.POSITIVE -> "→ +"
-                        CorrelationType.NEGATIVE -> "→ -"
-                        CorrelationType.PREREQUISITE -> "→"
-                        CorrelationType.COMPLEMENTARY -> "⟷"
+                Icon(
+                    imageVector = when (correlation.correlationType) {
+                        CorrelationType.COMPLEMENTARY -> DailyWellIcons.Analytics.Correlation
+                        else -> DailyWellIcons.Nav.ArrowForward
                     },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Secondary
+                    contentDescription = correlation.correlationType.name,
+                    modifier = Modifier.size(24.dp),
+                    tint = Secondary
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -512,12 +540,21 @@ private fun CorrelationCard(correlation: HabitCorrelation) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "💡 ${correlation.implication}",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = Secondary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = DailyWellIcons.Onboarding.Philosophy,
+                    contentDescription = "Implication",
+                    modifier = Modifier.size(14.dp),
+                    tint = Secondary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = correlation.implication,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = Secondary
+                )
+            }
 
             // Confidence indicator
             Spacer(modifier = Modifier.height(8.dp))
@@ -553,9 +590,11 @@ private fun EmptyInsightsCard() {
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "🔍",
-                fontSize = 48.sp
+            Icon(
+                imageVector = DailyWellIcons.Actions.Search,
+                contentDescription = "Gathering data",
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -588,19 +627,28 @@ private fun AIExplanationCard() {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = "🔬 How AI Insights Work",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = DailyWellIcons.Analytics.Pattern,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "How AI Insights Work",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Your data never leaves your device. Our on-device AI:\n\n" +
-                        "• Analyzes completion patterns over time\n" +
-                        "• Finds correlations between habits\n" +
-                        "• Identifies your optimal timing\n" +
-                        "• Predicts potential streak risks\n" +
-                        "• Celebrates your wins!\n\n" +
+                        "- Analyzes completion patterns over time\n" +
+                        "- Finds correlations between habits\n" +
+                        "- Identifies your optimal timing\n" +
+                        "- Predicts potential streak risks\n" +
+                        "- Celebrates your wins!\n\n" +
                         "The more you track, the smarter it gets.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -620,9 +668,11 @@ private fun InsightDetailDialog(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = insight.emoji,
-                    fontSize = 28.sp
+                Icon(
+                    imageVector = getInsightTypeIcon(insight.type),
+                    contentDescription = insight.type.label,
+                    modifier = Modifier.size(28.dp),
+                    tint = Secondary
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
@@ -681,3 +731,18 @@ private fun InsightDetailDialog(
         }
     )
 }
+
+private fun getInsightTypeIcon(type: InsightType): ImageVector {
+    return when (type) {
+        InsightType.CORRELATION -> DailyWellIcons.Analytics.Correlation
+        InsightType.TIMING_PATTERN -> DailyWellIcons.Misc.Time
+        InsightType.STREAK_RISK -> DailyWellIcons.Analytics.AtRisk
+        InsightType.SUCCESS_FACTOR -> DailyWellIcons.Status.Star
+        InsightType.RECOVERY_OPPORTUNITY -> DailyWellIcons.Habits.Recovery
+        InsightType.CELEBRATION -> DailyWellIcons.Social.Cheer
+        InsightType.WEEKLY_TREND -> DailyWellIcons.Analytics.TrendUp
+        InsightType.IMPROVEMENT -> DailyWellIcons.Analytics.TrendUp
+    }
+}
+
+

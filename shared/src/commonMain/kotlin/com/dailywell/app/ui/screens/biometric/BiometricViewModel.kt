@@ -1,9 +1,11 @@
 package com.dailywell.app.ui.screens.biometric
 
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailywell.app.data.model.*
 import com.dailywell.app.data.repository.BiometricRepository
+import com.dailywell.app.ui.components.DailyWellIcons
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,11 +24,11 @@ data class BiometricUiState(
     val showDeviceConnectDialog: Boolean = false
 )
 
-enum class BiometricTab(val title: String, val emoji: String) {
-    OVERVIEW("Overview", "📊"),
-    SLEEP("Sleep", "😴"),
-    HRV("HRV", "💗"),
-    CORRELATIONS("Correlations", "🔗")
+enum class BiometricTab(val title: String, val emoji: String, val icon: ImageVector) {
+    OVERVIEW("Overview", "📊", DailyWellIcons.Analytics.BarChart),
+    SLEEP("Sleep", "😴", DailyWellIcons.Habits.Sleep),
+    HRV("HRV", "💗", DailyWellIcons.Health.Heart),
+    CORRELATIONS("Correlations", "🔗", DailyWellIcons.Analytics.Correlation)
 }
 
 /**

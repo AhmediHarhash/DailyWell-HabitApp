@@ -115,8 +115,9 @@ class SmartReminderRepositoryImpl(
         val currentAvg = currentSettings.averageResponseTimeMinutes ?: responseTimeMinutes
         val newAvg = (currentAvg + responseTimeMinutes) / 2
 
-        // Update response rate (simplified - just track that they responded)
-        val newResponseRate = minOf(1.0f, currentSettings.responseRate + 0.1f)
+        // Exponential moving average: recent responses matter more
+        val alpha = 0.3f  // Weight for new data
+        val newResponseRate = (alpha * 1.0f + (1 - alpha) * currentSettings.responseRate).coerceIn(0f, 1f)
 
         val updatedSettings = currentSettings.copy(
             responseRate = newResponseRate,
@@ -146,9 +147,11 @@ class SmartReminderRepositoryImpl(
             // Update pattern with new completion
             val newHistory = (existingPattern.completionHistory + completionTime).takeLast(30)
             val avgHour = calculateAverageHour(newHistory)
+            val avgMinute = calculateAverageMinute(newHistory)
 
             habitPatterns[habitId] = existingPattern.copy(
                 optimalHour = avgHour,
+                optimalMinute = avgMinute,
                 completionHistory = newHistory,
                 successRateAtOptimal = calculateSuccessRate(newHistory, avgHour)
             )
@@ -176,8 +179,24 @@ class SmartReminderRepositoryImpl(
 
     private fun calculateAverageHour(history: List<String>): Int {
         if (history.isEmpty()) return 8
-        val hours = history.mapNotNull { it.split(":").firstOrNull()?.toIntOrNull() }
-        return if (hours.isNotEmpty()) hours.sum() / hours.size else 8
+        val totalMinutes = history.mapNotNull { time ->
+            val parts = time.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            h * 60 + m
+        }
+        return if (totalMinutes.isNotEmpty()) (totalMinutes.sum() / totalMinutes.size) / 60 else 8
+    }
+
+    private fun calculateAverageMinute(history: List<String>): Int {
+        if (history.isEmpty()) return 0
+        val totalMinutes = history.mapNotNull { time ->
+            val parts = time.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            h * 60 + m
+        }
+        return if (totalMinutes.isNotEmpty()) (totalMinutes.sum() / totalMinutes.size) % 60 else 0
     }
 
     private fun calculateSuccessRate(history: List<String>, targetHour: Int): Float {

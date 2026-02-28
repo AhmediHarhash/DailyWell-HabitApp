@@ -3,14 +3,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
-    android:background="@android:color/white"
+    android:background="@android:color/transparent"
     android:orientation="vertical"
     android:padding="16dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="DailyWell"
+        android:text="@string/widget_loading_title"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="#1B5E20" />
@@ -19,7 +19,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Loading..."
+        android:text="@string/widget_loading_subtitle"
         android:textSize="12sp"
         android:textColor="#757575" />
 

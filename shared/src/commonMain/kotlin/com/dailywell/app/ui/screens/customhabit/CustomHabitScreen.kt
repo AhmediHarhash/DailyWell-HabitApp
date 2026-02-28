@@ -1,5 +1,6 @@
 package com.dailywell.app.ui.screens.customhabit
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,18 +11,20 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dailywell.app.core.theme.Success
-import java.util.UUID
+import com.dailywell.app.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,16 +44,15 @@ fun CustomHabitScreen(
     val maxCustomHabits = if (isPremium) 3 else 0
     val canAddMore = existingCustomCount < maxCustomHabits
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Add Custom Habit") },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Text("✕", fontSize = 20.sp)
-                    }
-                },
-                actions = {
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+            PremiumTopBar(
+                title = "Add Custom Habit",
+                subtitle = "Create your own check-in",
+                onNavigationClick = onDismiss,
+                trailingActions = {
                     TextButton(
                         onClick = {
                             if (canSave && canAddMore) {
@@ -67,8 +69,8 @@ fun CustomHabitScreen(
                     }
                 }
             )
-        }
-    ) { paddingValues ->
+            }
+        ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -76,7 +78,11 @@ fun CustomHabitScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            if (!canAddMore && !isPremium) {
+            AnimatedVisibility(
+                visible = !canAddMore && !isPremium,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
@@ -88,7 +94,13 @@ fun CustomHabitScreen(
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
-            } else if (!canAddMore) {
+            }
+
+            AnimatedVisibility(
+                visible = !canAddMore && isPremium,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
@@ -102,17 +114,17 @@ fun CustomHabitScreen(
                 }
             }
 
-            // Emoji selector
-            Text(
-                text = "Choose an emoji",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+            // Icon selector
+            PremiumSectionChip(
+                text = "Choose an icon",
+                icon = DailyWellIcons.Actions.Edit
             )
 
             Box(
                 modifier = Modifier
                     .size(72.dp)
                     .clip(CircleShape)
+                    .pressScale()
                     .background(
                         if (selectedEmoji.isNotEmpty()) {
                             Success.copy(alpha = 0.1f)
@@ -128,10 +140,21 @@ fun CustomHabitScreen(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = selectedEmoji.ifEmpty { "+" },
-                    fontSize = if (selectedEmoji.isNotEmpty()) 36.sp else 24.sp
-                )
+                if (selectedEmoji.isNotEmpty()) {
+                    Icon(
+                        imageVector = getCustomHabitIcon(selectedEmoji),
+                        contentDescription = "Selected icon",
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = DailyWellIcons.Actions.Add,
+                        contentDescription = "Select icon",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             // Name
@@ -182,46 +205,63 @@ fun CustomHabitScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             // Preview
-            if (name.isNotBlank() && selectedEmoji.isNotBlank()) {
-                Text(
-                    text = "PREVIEW",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+            AnimatedVisibility(
+                visible = name.isNotBlank() && selectedEmoji.isNotBlank(),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column {
+                    PremiumSectionChip(
+                        text = "Preview",
+                        icon = DailyWellIcons.Actions.CheckCircle
                     )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
                     ) {
-                        Text(text = selectedEmoji, fontSize = 32.sp)
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                text = threshold.ifBlank { "Set threshold" },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "○", fontSize = 24.sp)
+                            Icon(
+                                imageVector = getCustomHabitIcon(selectedEmoji),
+                                contentDescription = name,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = threshold.ifBlank { "Set threshold" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.RadioButtonUnchecked,
+                                    contentDescription = "Not completed",
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -238,6 +278,7 @@ fun CustomHabitScreen(
                 onDismiss = { showEmojiPicker = false }
             )
         }
+        }
     }
 }
 
@@ -246,41 +287,93 @@ private fun EmojiPickerDialog(
     onEmojiSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val emojis = listOf(
+    val iconOptions = listOf(
         // Activities
-        "📚", "✍️", "🎨", "🎵", "🎸", "🎹", "📷", "🎬",
+        "book" to Icons.Filled.MenuBook,
+        "edit" to Icons.Filled.Edit,
+        "palette" to Icons.Filled.Palette,
+        "music" to Icons.Filled.MusicNote,
+        "headphones" to Icons.Filled.Headphones,
+        "piano" to Icons.Filled.Piano,
+        "camera" to Icons.Filled.CameraAlt,
+        "movie" to Icons.Filled.Movie,
         // Health
-        "🧘", "🏋️", "🚴", "🏊", "⚽", "🎾", "🏀", "🥊",
+        "yoga" to Icons.Filled.SelfImprovement,
+        "fitness" to Icons.Filled.FitnessCenter,
+        "cycling" to Icons.Filled.DirectionsBike,
+        "pool" to Icons.Filled.Pool,
+        "sports" to Icons.Filled.SportsSoccer,
+        "run" to Icons.Filled.DirectionsRun,
+        "walk" to Icons.Filled.DirectionsWalk,
+        "heart" to Icons.Filled.Favorite,
         // Nature
-        "🌳", "🌻", "🌊", "⛰️", "🏕️", "🌅", "🌙", "⭐",
+        "nature" to Icons.Filled.Park,
+        "flower" to Icons.Filled.LocalFlorist,
+        "water" to Icons.Filled.WaterDrop,
+        "terrain" to Icons.Filled.Terrain,
+        "camping" to Icons.Filled.NaturePeople,
+        "sunrise" to Icons.Filled.WbSunny,
+        "night" to Icons.Filled.NightsStay,
+        "star" to Icons.Filled.Star,
         // Food
-        "🍎", "🥗", "🍳", "☕", "🍵", "💊", "🧃", "🥤",
+        "apple" to Icons.Filled.Spa,
+        "salad" to Icons.Filled.Restaurant,
+        "cooking" to Icons.Filled.OutdoorGrill,
+        "coffee" to Icons.Filled.Coffee,
+        "tea" to Icons.Filled.EmojiFoodBeverage,
+        "medication" to Icons.Filled.Medication,
+        "drink" to Icons.Filled.LocalDrink,
+        "nutrition" to Icons.Filled.Egg,
         // Social
-        "👋", "🤝", "💬", "📞", "💌", "🎁", "🎉", "❤️",
+        "wave" to Icons.Filled.WavingHand,
+        "handshake" to Icons.Filled.Handshake,
+        "chat" to Icons.Filled.Chat,
+        "phone" to Icons.Filled.Phone,
+        "mail" to Icons.Filled.Mail,
+        "gift" to Icons.Filled.CardGiftcard,
+        "celebration" to Icons.Filled.Celebration,
+        "love" to Icons.Filled.Favorite,
         // Self-care
-        "🛁", "💤", "🧴", "💅", "🪥", "🧹", "📱", "💻",
+        "spa" to Icons.Filled.Spa,
+        "sleep" to Icons.Filled.Bedtime,
+        "clean" to Icons.Filled.CleaningServices,
+        "home" to Icons.Filled.Home,
+        "mobile" to Icons.Filled.PhoneAndroid,
+        "laptop" to Icons.Filled.Laptop,
         // Learning
-        "🧠", "💡", "🎓", "📝", "📖", "🔬", "🌍", "💰"
+        "brain" to Icons.Filled.Psychology,
+        "idea" to Icons.Filled.Lightbulb,
+        "school" to Icons.Filled.School,
+        "notes" to Icons.Filled.EditNote,
+        "reading" to Icons.Filled.AutoStories,
+        "science" to Icons.Filled.Science,
+        "globe" to Icons.Filled.Public,
+        "savings" to Icons.Filled.Savings
     )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Choose an emoji") },
+        title = { Text("Choose an icon") },
         text = {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(6),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(emojis) { emoji ->
+                items(iconOptions) { (key, icon) ->
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onEmojiSelected(emoji) },
+                            .clickable { onEmojiSelected(key) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = emoji, fontSize = 24.sp)
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = key,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
@@ -291,4 +384,68 @@ private fun EmojiPickerDialog(
             }
         }
     )
+}
+
+/**
+ * Maps a stored icon key string to the corresponding Material Icon.
+ * Falls back to DailyWellIcons.Habits.Custom (Star) for unknown keys.
+ */
+private fun getCustomHabitIcon(key: String): ImageVector {
+    return when (key) {
+        "book" -> Icons.Filled.MenuBook
+        "edit" -> Icons.Filled.Edit
+        "palette" -> Icons.Filled.Palette
+        "music" -> Icons.Filled.MusicNote
+        "headphones" -> Icons.Filled.Headphones
+        "piano" -> Icons.Filled.Piano
+        "camera" -> Icons.Filled.CameraAlt
+        "movie" -> Icons.Filled.Movie
+        "yoga" -> Icons.Filled.SelfImprovement
+        "fitness" -> Icons.Filled.FitnessCenter
+        "cycling" -> Icons.Filled.DirectionsBike
+        "pool" -> Icons.Filled.Pool
+        "sports" -> Icons.Filled.SportsSoccer
+        "run" -> Icons.Filled.DirectionsRun
+        "walk" -> Icons.Filled.DirectionsWalk
+        "heart" -> Icons.Filled.Favorite
+        "nature" -> Icons.Filled.Park
+        "flower" -> Icons.Filled.LocalFlorist
+        "water" -> Icons.Filled.WaterDrop
+        "terrain" -> Icons.Filled.Terrain
+        "camping" -> Icons.Filled.NaturePeople
+        "sunrise" -> Icons.Filled.WbSunny
+        "night" -> Icons.Filled.NightsStay
+        "star" -> Icons.Filled.Star
+        "apple" -> Icons.Filled.Spa
+        "salad" -> Icons.Filled.Restaurant
+        "cooking" -> Icons.Filled.OutdoorGrill
+        "coffee" -> Icons.Filled.Coffee
+        "tea" -> Icons.Filled.EmojiFoodBeverage
+        "medication" -> Icons.Filled.Medication
+        "drink" -> Icons.Filled.LocalDrink
+        "nutrition" -> Icons.Filled.Egg
+        "wave" -> Icons.Filled.WavingHand
+        "handshake" -> Icons.Filled.Handshake
+        "chat" -> Icons.Filled.Chat
+        "phone" -> Icons.Filled.Phone
+        "mail" -> Icons.Filled.Mail
+        "gift" -> Icons.Filled.CardGiftcard
+        "celebration" -> Icons.Filled.Celebration
+        "love" -> Icons.Filled.Favorite
+        "spa" -> Icons.Filled.Spa
+        "sleep" -> Icons.Filled.Bedtime
+        "clean" -> Icons.Filled.CleaningServices
+        "home" -> Icons.Filled.Home
+        "mobile" -> Icons.Filled.PhoneAndroid
+        "laptop" -> Icons.Filled.Laptop
+        "brain" -> Icons.Filled.Psychology
+        "idea" -> Icons.Filled.Lightbulb
+        "school" -> Icons.Filled.School
+        "notes" -> Icons.Filled.EditNote
+        "reading" -> Icons.Filled.AutoStories
+        "science" -> Icons.Filled.Science
+        "globe" -> Icons.Filled.Public
+        "savings" -> Icons.Filled.Savings
+        else -> DailyWellIcons.Habits.Custom
+    }
 }

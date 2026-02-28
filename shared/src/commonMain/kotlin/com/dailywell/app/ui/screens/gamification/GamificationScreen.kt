@@ -33,6 +33,13 @@ import com.dailywell.app.core.theme.Primary
 import com.dailywell.app.core.theme.PrimaryLight
 import com.dailywell.app.core.theme.Secondary
 import com.dailywell.app.core.theme.SecondaryLight
+import com.dailywell.app.ui.components.DailyWellIcons
+import com.dailywell.app.ui.components.GlassScreenWrapper
+import com.dailywell.app.ui.components.PremiumSectionChip
+import com.dailywell.app.ui.components.PremiumTopBar
+import com.dailywell.app.ui.components.ShimmerLoadingScreen
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,104 +51,111 @@ fun GamificationScreen(
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Rewards & Progress") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text(text = "\u2190", fontSize = 24.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                PremiumTopBar(
+                    title = "Rewards & Progress",
+                    subtitle = "XP, badges, and themes",
+                    onNavigationClick = onBack
                 )
-            )
-        }
-    ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Secondary)
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // XP & Level Card
-                item {
-                    LevelProgressCard(
-                        level = uiState.gamificationData.currentLevel,
-                        totalXp = uiState.gamificationData.totalXp,
-                        xpProgress = uiState.xpProgress,
-                        levelTitle = uiState.levelTitle,
-                        xpToNext = uiState.gamificationData.xpToNextLevel
-                    )
-                }
-
-                // Daily Actions Row
-                item {
-                    DailyActionsRow(
-                        canClaimReward = uiState.canClaimDailyReward,
-                        canSpin = uiState.canSpin,
-                        streakShields = uiState.gamificationData.streakShields,
-                        onClaimReward = { viewModel.claimDailyReward() },
-                        onSpin = { viewModel.openSpinWheel() }
-                    )
-                }
-
-                // Stats Overview
-                item {
-                    StatsOverviewCard(
-                        data = uiState.gamificationData
-                    )
-                }
-
-                // Tab Selection
-                item {
-                    TabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = Color.Transparent,
-                        contentColor = Secondary
-                    ) {
-                        Tab(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = { Text("Badges") }
-                        )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            text = { Text("Themes") }
+        ) { paddingValues ->
+            if (uiState.isLoading) {
+                ShimmerLoadingScreen(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // XP & Level Card
+                    item {
+                        LevelProgressCard(
+                            level = uiState.gamificationData.currentLevel,
+                            totalXp = uiState.gamificationData.totalXp,
+                            xpProgress = uiState.xpProgress,
+                            levelTitle = uiState.levelTitle,
+                            xpToNext = uiState.gamificationData.xpToNextLevel
                         )
                     }
-                }
 
-                // Content based on selected tab
-                when (selectedTab) {
-                    0 -> {
-                        item {
-                            BadgesSection(
-                                allBadges = uiState.allBadgesWithStatus,
-                                getBadgeProgress = { badge -> viewModel.getBadgeProgress(badge) }
+                    // Daily Actions Row
+                    item {
+                        DailyActionsRow(
+                            canClaimReward = uiState.canClaimDailyReward,
+                            canSpin = uiState.canSpin,
+                            streakShields = uiState.gamificationData.streakShields,
+                            onClaimReward = { viewModel.claimDailyReward() },
+                            onSpin = { viewModel.openSpinWheel() }
+                        )
+                    }
+
+                    // Stats Overview
+                    item {
+                        StatsOverviewCard(
+                            data = uiState.gamificationData
+                        )
+                    }
+
+                    item {
+                        PremiumSectionChip(
+                            text = if (selectedTab == 0) "Badge Collection" else "Theme Collection",
+                            icon = if (selectedTab == 0) {
+                                DailyWellIcons.Gamification.Badge
+                            } else {
+                                DailyWellIcons.Gamification.Crown
+                            }
+                        )
+                    }
+
+                    // Tab Selection
+                    item {
+                        TabRow(
+                            selectedTabIndex = selectedTab,
+                            containerColor = Color.Transparent,
+                            contentColor = Secondary
+                        ) {
+                            Tab(
+                                selected = selectedTab == 0,
+                                onClick = { selectedTab = 0 },
+                                text = { Text("Badges") }
+                            )
+                            Tab(
+                                selected = selectedTab == 1,
+                                onClick = { selectedTab = 1 },
+                                text = { Text("Themes") }
                             )
                         }
                     }
-                    1 -> {
-                        item {
-                            ThemesSection(
-                                allThemes = ThemeLibrary.allThemes,
-                                unlockedThemes = uiState.unlockedThemes,
-                                selectedTheme = uiState.selectedTheme,
-                                currentLevel = uiState.gamificationData.currentLevel,
-                                onSelectTheme = { viewModel.selectTheme(it) }
-                            )
+
+                    // Content based on selected tab
+                    when (selectedTab) {
+                        0 -> {
+                            item {
+                                BadgesSection(
+                                    allBadges = uiState.allBadgesWithStatus,
+                                    getBadgeProgress = { badge -> viewModel.getBadgeProgress(badge) }
+                                )
+                            }
+                        }
+                        1 -> {
+                            item {
+                                ThemesSection(
+                                    allThemes = ThemeLibrary.allThemes,
+                                    unlockedThemes = uiState.unlockedThemes,
+                                    selectedTheme = uiState.selectedTheme,
+                                    currentLevel = uiState.gamificationData.currentLevel,
+                                    onSelectTheme = { viewModel.selectTheme(it) }
+                                )
+                            }
                         }
                     }
                 }
@@ -213,9 +227,11 @@ private fun LevelProgressCard(
                     verticalAlignment = Alignment.Top
                 ) {
                     Column {
-                        Text(
-                            text = levelTitle.emoji,
-                            fontSize = 40.sp
+                        Icon(
+                            imageVector = DailyWellIcons.Gamification.Level,
+                            contentDescription = levelTitle.name,
+                            modifier = Modifier.size(40.dp),
+                            tint = Color.White
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -309,7 +325,7 @@ private fun DailyActionsRow(
         // Daily Reward
         ActionCard(
             modifier = Modifier.weight(1f),
-            emoji = if (canClaimReward) "🎁" else "✓",
+            icon = if (canClaimReward) DailyWellIcons.Gamification.Gift else DailyWellIcons.Actions.Check,
             title = "Daily",
             subtitle = if (canClaimReward) "Claim!" else "Done",
             isActive = canClaimReward,
@@ -319,7 +335,7 @@ private fun DailyActionsRow(
         // Spin Wheel
         ActionCard(
             modifier = Modifier.weight(1f),
-            emoji = if (canSpin) "🎰" else "✓",
+            icon = if (canSpin) DailyWellIcons.Gamification.Spin else DailyWellIcons.Actions.Check,
             title = "Spin",
             subtitle = if (canSpin) "Free spin!" else "Done",
             isActive = canSpin,
@@ -329,7 +345,7 @@ private fun DailyActionsRow(
         // Streak Shields
         ActionCard(
             modifier = Modifier.weight(1f),
-            emoji = "🛡️",
+            icon = DailyWellIcons.Gamification.Shield,
             title = "Shields",
             subtitle = "$streakShields left",
             isActive = false,
@@ -341,7 +357,7 @@ private fun DailyActionsRow(
 @Composable
 private fun ActionCard(
     modifier: Modifier = Modifier,
-    emoji: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     isActive: Boolean,
@@ -361,7 +377,7 @@ private fun ActionCard(
     Card(
         modifier = modifier
             .scale(scale)
-            .clickable(enabled = isActive || emoji == "🎰", onClick = onClick),
+            .clickable(enabled = isActive || icon == DailyWellIcons.Gamification.Spin, onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = if (isActive)
                 PrimaryLight.copy(alpha = 0.5f)
@@ -376,9 +392,10 @@ private fun ActionCard(
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = emoji,
-                fontSize = 28.sp
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -566,12 +583,11 @@ private fun BadgeItem(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(8.dp)
             ) {
-                Text(
-                    text = if (isUnlocked || !badge.isSecret) badge.emoji else "❓",
-                    fontSize = 32.sp,
-                    modifier = Modifier.then(
-                        if (!isUnlocked) Modifier else Modifier
-                    )
+                Icon(
+                    imageVector = if (isUnlocked || !badge.isSecret) DailyWellIcons.getBadgeIcon(badge.id) else DailyWellIcons.Misc.Help,
+                    contentDescription = if (isUnlocked || !badge.isSecret) badge.name else "Secret badge",
+                    modifier = Modifier.size(32.dp),
+                    tint = if (isUnlocked) Color.Unspecified else Color.Gray
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -684,9 +700,11 @@ private fun ThemeItem(
                     .background(Color(theme.primaryColor)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = theme.emoji,
-                    fontSize = 24.sp
+                Icon(
+                    imageVector = DailyWellIcons.Misc.Palette,
+                    contentDescription = theme.name,
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.White
                 )
             }
 
@@ -717,19 +735,29 @@ private fun ThemeItem(
                         is ThemeUnlockRequirement.Premium -> "Premium"
                         null -> ""
                     }
-                    Text(
-                        text = "🔒 $requirement",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Secondary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = DailyWellIcons.Status.Lock,
+                            contentDescription = "Locked",
+                            modifier = Modifier.size(14.dp),
+                            tint = Secondary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = requirement,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Secondary
+                        )
+                    }
                 }
             }
 
             if (isSelected) {
-                Text(
-                    text = "✓",
-                    fontSize = 24.sp,
-                    color = Secondary
+                Icon(
+                    imageVector = DailyWellIcons.Actions.Check,
+                    contentDescription = "Selected",
+                    modifier = Modifier.size(24.dp),
+                    tint = Secondary
                 )
             }
         }
@@ -755,9 +783,11 @@ private fun DailyRewardDialog(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "🎁",
-                    fontSize = 64.sp
+                Icon(
+                    imageVector = DailyWellIcons.Gamification.Gift,
+                    contentDescription = "Daily Reward",
+                    modifier = Modifier.size(64.dp),
+                    tint = Secondary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -798,10 +828,10 @@ private fun DailyRewardDialog(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = when (bonus) {
-                                    is DailyBonusReward.StreakShield -> "+${bonus.count} Streak Shield 🛡️"
-                                    is DailyBonusReward.XpMultiplier -> "${bonus.multiplier}x XP for ${bonus.durationHours}h 🚀"
-                                    is DailyBonusReward.ThemeUnlock -> "Theme Unlocked! 🎨"
-                                    is DailyBonusReward.BadgeProgress -> "Badge Progress! 🏅"
+                                    is DailyBonusReward.StreakShield -> "+${bonus.count} Streak Shield"
+                                    is DailyBonusReward.XpMultiplier -> "${bonus.multiplier}x XP for ${bonus.durationHours}h"
+                                    is DailyBonusReward.ThemeUnlock -> "Theme Unlocked!"
+                                    is DailyBonusReward.BadgeProgress -> "Badge Progress!"
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Primary
@@ -892,9 +922,10 @@ private fun SpinWheelDialog(
                             .background(Color.White),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "🎰",
-                            fontSize = 32.sp
+                        Icon(
+                            imageVector = DailyWellIcons.Gamification.Spin,
+                            contentDescription = "Spin",
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
@@ -928,11 +959,11 @@ private fun SpinWheelDialog(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = when (result) {
-                                    is SpinReward.Xp -> "+${result.amount} XP ⭐"
-                                    is SpinReward.StreakShields -> "+${result.count} Streak Shield 🛡️"
-                                    is SpinReward.XpBoost -> "${result.multiplier}x XP for ${result.hours}h 🚀"
-                                    is SpinReward.ThemeTicket -> "Theme Ticket! 🎨"
-                                    is SpinReward.TryAgain -> "Try again tomorrow! 🔄"
+                                    is SpinReward.Xp -> "+${result.amount} XP"
+                                    is SpinReward.StreakShields -> "+${result.count} Streak Shield"
+                                    is SpinReward.XpBoost -> "${result.multiplier}x XP for ${result.hours}h"
+                                    is SpinReward.ThemeTicket -> "Theme Ticket!"
+                                    is SpinReward.TryAgain -> "Try again tomorrow!"
                                     null -> ""
                                 },
                                 style = MaterialTheme.typography.headlineSmall,
@@ -1005,9 +1036,11 @@ private fun BadgeUnlockedDialog(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "🎉",
-                    fontSize = 48.sp
+                Icon(
+                    imageVector = DailyWellIcons.Social.Cheer,
+                    contentDescription = "Celebration",
+                    modifier = Modifier.size(48.dp),
+                    tint = Secondary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1020,9 +1053,11 @@ private fun BadgeUnlockedDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text(
-                    text = badge.emoji,
-                    fontSize = 80.sp
+                Icon(
+                    imageVector = DailyWellIcons.getBadgeIcon(badge.id),
+                    contentDescription = badge.name,
+                    modifier = Modifier.size(80.dp),
+                    tint = Secondary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1083,9 +1118,11 @@ private fun BadgeDetailDialog(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = if (isUnlocked || !badge.isSecret) badge.emoji else "❓",
-                    fontSize = 64.sp
+                Icon(
+                    imageVector = if (isUnlocked || !badge.isSecret) DailyWellIcons.getBadgeIcon(badge.id) else DailyWellIcons.Misc.Help,
+                    contentDescription = if (isUnlocked || !badge.isSecret) badge.name else "Secret badge",
+                    modifier = Modifier.size(64.dp),
+                    tint = if (isUnlocked) Secondary else Color.Gray
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

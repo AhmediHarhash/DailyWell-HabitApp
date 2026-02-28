@@ -18,4 +18,18 @@ interface EntryRepository {
     suspend fun createEntryIfNeeded(date: String, habitIds: List<String>)
     suspend fun updateStreak()
     suspend fun getCompletionRateForHabit(habitId: String, days: Int): Float
+
+    // For proactive notifications
+    fun getEntriesForDate(date: String): Flow<List<HabitEntryStatus>>
+    fun getEntriesInRange(startDate: String, endDate: String): Flow<List<HabitEntryStatus>>
+    suspend fun getLastEntryDate(): String?
 }
+
+/**
+ * Simple data class for habit entry status used by notification system
+ */
+data class HabitEntryStatus(
+    val habitId: String,
+    val date: String,
+    val completed: Boolean
+)

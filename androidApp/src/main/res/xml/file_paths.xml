@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- SLM model files in internal storage (context.filesDir/models/) -->
+    <files-path name="models" path="models/" />
+    <!-- Calendar tracker exports for image/pdf sharing -->
+    <cache-path name="exports_cache" path="exports/" />
+    <files-path name="exports_files" path="exports/" />
+</paths>

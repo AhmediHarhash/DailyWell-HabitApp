@@ -2,51 +2,115 @@ package com.dailywell.app.ui.screens.coaching
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailywell.app.ai.SLMDownloadInfo
+import com.dailywell.app.ai.SLMDownloadProgress
 import com.dailywell.app.data.model.*
 import com.dailywell.app.data.repository.AICoachingRepository
+import com.dailywell.app.speech.SpeechRecognitionService
+import com.dailywell.app.speech.SpeechRecognitionState
+import com.dailywell.app.speech.SpeechSettings
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 
 data class AICoachingUiState(
     val selectedCoach: CoachPersona = CoachPersonas.supportiveSam,
-    val availableCoaches: List<CoachPersona> = CoachPersonas.allCoaches,
     val dailyInsight: DailyCoachingInsight? = null,
     val activeSession: AICoachingSession? = null,
     val sessionHistory: List<AICoachingSession> = emptyList(),
     val actionItems: List<CoachingActionItem> = emptyList(),
     val weeklySummary: WeeklyCoachingSummary? = null,
     val isLoading: Boolean = true,
-    val showCoachSelector: Boolean = false,
     val showSessionTypeSelector: Boolean = false,
     val currentMessage: String = "",
-    val error: String? = null
+    val pendingUserMessage: CoachingMessage? = null,
+    val isGeneratingReply: Boolean = false,
+    val awaitingSessionId: String? = null,
+    val awaitingBaseMessageCount: Int? = null,
+    val error: String? = null,
+    // Voice input state
+    val voiceInputEnabled: Boolean = true,
+    val needsMicrophonePermission: Boolean = false,
+    // AI Usage/Credits state (for cost control)
+    val aiUsage: UserAIUsage? = null,
+    val aiCreditsPercent: Float = 100f,
+    val canUseAI: Boolean = true,
+    val aiLimitMessage: String? = null,
+    val showUpgradePrompt: Boolean = false,
+    val slmDownloadProgress: SLMDownloadProgress = SLMDownloadProgress.Dismissed
 )
 
 /**
  * ViewModel for Advanced AI Coaching features
  */
 class AICoachingViewModel(
-    private val coachingRepository: AICoachingRepository
+    private val coachingRepository: AICoachingRepository,
+    private val speechService: SpeechRecognitionService? = null,
+    private val slmDownloadInfo: SLMDownloadInfo? = null
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(AICoachingUiState())
     val uiState: StateFlow<AICoachingUiState> = _uiState.asStateFlow()
 
+    // Speech recognition state
+    val speechState: StateFlow<SpeechRecognitionState> = speechService?.state
+        ?: MutableStateFlow<SpeechRecognitionState>(SpeechRecognitionState.Idle)
+
+    val speechSettings: StateFlow<SpeechSettings> = speechService?.settings
+        ?: MutableStateFlow(SpeechSettings())
+
+    val isSpeaking: StateFlow<Boolean> = speechService?.isSpeaking
+        ?: MutableStateFlow(false)
+
+    val isVoiceAvailable: Boolean = speechService?.isAvailable ?: false
+
     init {
         loadCoachingData()
+        observeSpeechResults()
+        observeSLMDownload()
+    }
+
+    private fun observeSLMDownload() {
+        val downloadInfo = slmDownloadInfo ?: return
+        viewModelScope.launch {
+            downloadInfo.downloadProgress.collect { progress ->
+                _uiState.value = _uiState.value.copy(slmDownloadProgress = progress)
+            }
+        }
+    }
+
+    private fun observeSpeechResults() {
+        if (speechService == null) return
+
+        viewModelScope.launch {
+            speechService.state.collect { state ->
+                when (state) {
+                    is SpeechRecognitionState.Result -> {
+                        // Auto-populate the message field with recognized text
+                        _uiState.value = _uiState.value.copy(currentMessage = state.text)
+
+                        // Auto-send if settings allow
+                        if (speechSettings.value.autoSendAfterSpeech) {
+                            sendMessage()
+                        }
+                    }
+                    is SpeechRecognitionState.PartialResult -> {
+                        // Show partial result in input field
+                        _uiState.value = _uiState.value.copy(currentMessage = state.text)
+                    }
+                    else -> { /* Other states handled by UI */ }
+                }
+            }
+        }
     }
 
     private fun loadCoachingData() {
-        viewModelScope.launch {
-            coachingRepository.getSelectedCoach().collect { coach ->
-                _uiState.value = _uiState.value.copy(
-                    selectedCoach = coach,
-                    isLoading = false
-                )
-            }
-        }
+        _uiState.value = _uiState.value.copy(
+            selectedCoach = CoachPersonas.supportiveSam,
+            isLoading = false
+        )
 
         viewModelScope.launch {
             coachingRepository.getDailyInsight().collect { insight ->
@@ -56,8 +120,21 @@ class AICoachingViewModel(
 
         viewModelScope.launch {
             coachingRepository.getActiveSessions().collect { sessions ->
-                _uiState.value = _uiState.value.copy(
-                    activeSession = sessions.firstOrNull()
+                val active = sessions.firstOrNull()
+                val current = _uiState.value
+                val replyPersisted = current.isGeneratingReply &&
+                    current.awaitingSessionId != null &&
+                    current.awaitingBaseMessageCount != null &&
+                    active != null &&
+                    active.id == current.awaitingSessionId &&
+                    active.messages.size >= current.awaitingBaseMessageCount + 2
+
+                _uiState.value = current.copy(
+                    activeSession = active,
+                    pendingUserMessage = if (replyPersisted) null else current.pendingUserMessage,
+                    isGeneratingReply = if (replyPersisted) false else current.isGeneratingReply,
+                    awaitingSessionId = if (replyPersisted) null else current.awaitingSessionId,
+                    awaitingBaseMessageCount = if (replyPersisted) null else current.awaitingBaseMessageCount
                 )
             }
         }
@@ -79,18 +156,31 @@ class AICoachingViewModel(
                 _uiState.value = _uiState.value.copy(weeklySummary = summary)
             }
         }
-    }
 
-    // Coach selection
-    fun showCoachSelector(show: Boolean) {
-        _uiState.value = _uiState.value.copy(showCoachSelector = show)
-    }
-
-    fun selectCoach(coachId: String) {
+        // Observe AI usage for credits display
         viewModelScope.launch {
-            coachingRepository.selectCoach(coachId)
-            _uiState.value = _uiState.value.copy(showCoachSelector = false)
+            coachingRepository.getAIUsage().collect { usage ->
+                _uiState.value = _uiState.value.copy(
+                    aiUsage = usage,
+                    aiCreditsPercent = usage.percentRemaining,
+                    canUseAI = usage.hasCreditsRemaining
+                )
+            }
         }
+    }
+
+    // Check AI availability before sending message
+    private suspend fun checkAILimits(): Boolean {
+        val result = coachingRepository.checkAIAvailability()
+        if (!result.canUseAI) {
+            _uiState.value = _uiState.value.copy(
+                canUseAI = false,
+                aiLimitMessage = result.reason?.userMessage,
+                showUpgradePrompt = result.upgradeMessage != null
+            )
+            return false
+        }
+        return true
     }
 
     // Sessions
@@ -112,22 +202,133 @@ class AICoachingViewModel(
         }
     }
 
+    fun startNewChat() {
+        viewModelScope.launch {
+            try {
+                _uiState.value.activeSession?.id?.let { coachingRepository.completeSession(it) }
+                val session = coachingRepository.startSession(CoachingSessionType.HABIT_COACHING)
+                _uiState.value = _uiState.value.copy(
+                    activeSession = session,
+                    currentMessage = "",
+                    pendingUserMessage = null,
+                    isGeneratingReply = false,
+                    awaitingSessionId = null,
+                    awaitingBaseMessageCount = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
+
+    fun onCoachScreenOpened() {
+        viewModelScope.launch {
+            // Give repository flows a brief moment to hydrate persisted sessions.
+            delay(250)
+
+            val state = _uiState.value
+            if (state.activeSession != null) {
+                attachPendingScanHandoff(state.activeSession.id)
+                return@launch
+            }
+
+            val recentSession = state.sessionHistory.firstOrNull()
+            if (recentSession != null) {
+                val resumed = coachingRepository.resumeSession(recentSession.id)
+                if (resumed != null) {
+                    _uiState.value = _uiState.value.copy(
+                        activeSession = resumed,
+                        currentMessage = "",
+                        pendingUserMessage = null,
+                        isGeneratingReply = false,
+                        awaitingSessionId = null,
+                        awaitingBaseMessageCount = null
+                    )
+                    attachPendingScanHandoff(resumed.id)
+                    return@launch
+                }
+            }
+
+            try {
+                val session = coachingRepository.startSession(CoachingSessionType.HABIT_COACHING)
+                _uiState.value = _uiState.value.copy(
+                    activeSession = session,
+                    currentMessage = "",
+                    pendingUserMessage = null,
+                    isGeneratingReply = false,
+                    awaitingSessionId = null,
+                    awaitingBaseMessageCount = null
+                )
+                attachPendingScanHandoff(session.id)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
+
+    private suspend fun attachPendingScanHandoff(sessionId: String) {
+        val handoff = coachingRepository.consumePendingScanHandoff() ?: return
+        coachingRepository.addScanContinuationMessage(sessionId, handoff)
+    }
+
+    fun resumeSession(sessionId: String) {
+        viewModelScope.launch {
+            try {
+                val session = coachingRepository.resumeSession(sessionId) ?: return@launch
+                _uiState.value = _uiState.value.copy(
+                    activeSession = session,
+                    currentMessage = "",
+                    pendingUserMessage = null,
+                    isGeneratingReply = false,
+                    awaitingSessionId = null,
+                    awaitingBaseMessageCount = null
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
+
     fun updateCurrentMessage(message: String) {
         _uiState.value = _uiState.value.copy(currentMessage = message)
     }
 
     fun sendMessage() {
-        val message = _uiState.value.currentMessage.trim()
-        val sessionId = _uiState.value.activeSession?.id ?: return
+        val state = _uiState.value
+        val message = state.currentMessage.trim()
+        val activeSession = state.activeSession ?: return
+        val sessionId = activeSession.id
 
         if (message.isBlank()) return
 
         viewModelScope.launch {
             try {
-                _uiState.value = _uiState.value.copy(currentMessage = "")
+                val now = Clock.System.now().toString()
+                val pendingUser = CoachingMessage(
+                    id = "pending_user_${Clock.System.now().toEpochMilliseconds()}",
+                    role = MessageRole.USER,
+                    content = message,
+                    timestamp = now
+                )
+
+                _uiState.value = _uiState.value.copy(
+                    currentMessage = "",
+                    pendingUserMessage = pendingUser,
+                    isGeneratingReply = true,
+                    awaitingSessionId = sessionId,
+                    awaitingBaseMessageCount = activeSession.messages.size
+                )
+
                 coachingRepository.sendMessage(sessionId, message)
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = e.message)
+                _uiState.value = _uiState.value.copy(
+                    currentMessage = message,
+                    pendingUserMessage = null,
+                    isGeneratingReply = false,
+                    awaitingSessionId = null,
+                    awaitingBaseMessageCount = null,
+                    error = e.message
+                )
             }
         }
     }
@@ -149,7 +350,13 @@ class AICoachingViewModel(
 
         viewModelScope.launch {
             coachingRepository.completeSession(sessionId)
-            _uiState.value = _uiState.value.copy(activeSession = null)
+            _uiState.value = _uiState.value.copy(
+                activeSession = null,
+                pendingUserMessage = null,
+                isGeneratingReply = false,
+                awaitingSessionId = null,
+                awaitingBaseMessageCount = null
+            )
         }
     }
 
@@ -186,5 +393,98 @@ class AICoachingViewModel(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    // Voice input methods
+    fun startVoiceInput() {
+        viewModelScope.launch {
+            if (speechService == null) return@launch
+
+            val hasPermission = speechService.checkPermission()
+            if (!hasPermission) {
+                _uiState.value = _uiState.value.copy(needsMicrophonePermission = true)
+                return@launch
+            }
+
+            speechService.startListening()
+        }
+    }
+
+    fun stopVoiceInput() {
+        speechService?.stopListening()
+    }
+
+    fun cancelVoiceInput() {
+        speechService?.cancelListening()
+    }
+
+    fun onMicrophonePermissionResult(granted: Boolean) {
+        _uiState.value = _uiState.value.copy(needsMicrophonePermission = false)
+        if (granted) {
+            startVoiceInput()
+        }
+    }
+
+    fun speakResponse(text: String) {
+        viewModelScope.launch {
+            speechService?.speak(text)
+        }
+    }
+
+    fun stopSpeaking() {
+        speechService?.stopSpeaking()
+    }
+
+    fun updateVoiceSettings(settings: SpeechSettings) {
+        viewModelScope.launch {
+            speechService?.updateSettings(settings)
+        }
+    }
+
+    // AI Credits/Usage methods
+    fun dismissUpgradePrompt() {
+        _uiState.value = _uiState.value.copy(showUpgradePrompt = false)
+    }
+
+    fun clearAILimitMessage() {
+        _uiState.value = _uiState.value.copy(aiLimitMessage = null)
+    }
+
+    fun refreshAIUsage() {
+        viewModelScope.launch {
+            val result = coachingRepository.checkAIAvailability()
+            _uiState.value = _uiState.value.copy(
+                canUseAI = result.canUseAI,
+                aiCreditsPercent = result.percentRemaining,
+                aiLimitMessage = if (!result.canUseAI) result.reason?.userMessage else null
+            )
+        }
+    }
+
+    fun startSLMDownload() {
+        slmDownloadInfo?.startDownload()
+    }
+
+    fun dismissSLMDownloadCard() {
+        slmDownloadInfo?.dismissDownloadCard()
+    }
+
+    /**
+     * Update plan type when user upgrades
+     */
+    fun onPlanUpgraded(planType: AIPlanType) {
+        viewModelScope.launch {
+            coachingRepository.updatePlanType(planType)
+            _uiState.value = _uiState.value.copy(
+                showUpgradePrompt = false,
+                canUseAI = true,
+                aiLimitMessage = null
+            )
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        speechService?.release()
     }
 }

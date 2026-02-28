@@ -257,4 +257,43 @@ class EntryRepositoryImpl(
             }
         }
     }
+
+    // ============================================================
+    // PROACTIVE NOTIFICATION SUPPORT
+    // ============================================================
+
+    override fun getEntriesForDate(date: String): Flow<List<HabitEntryStatus>> {
+        return entryDao.getEntriesForDate(date).map { entities ->
+            entities.map { entity ->
+                HabitEntryStatus(
+                    habitId = entity.habitId,
+                    date = entity.date,
+                    completed = entity.completed
+                )
+            }
+        }
+    }
+
+    override fun getEntriesInRange(startDate: String, endDate: String): Flow<List<HabitEntryStatus>> {
+        return entryDao.getEntriesInRange(startDate, endDate).map { entities ->
+            entities.map { entity ->
+                HabitEntryStatus(
+                    habitId = entity.habitId,
+                    date = entity.date,
+                    completed = entity.completed
+                )
+            }
+        }
+    }
+
+    override suspend fun getLastEntryDate(): String? {
+        val todayDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val startDate = todayDate.minus(365, DateTimeUnit.DAY)
+        val entries = entryDao.getEntriesInRangeSync(startDate.toString(), todayDate.toString())
+
+        return entries
+            .filter { it.completed }
+            .maxByOrNull { it.date }
+            ?.date
+    }
 }

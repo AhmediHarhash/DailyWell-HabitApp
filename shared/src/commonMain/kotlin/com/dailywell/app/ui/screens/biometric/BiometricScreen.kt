@@ -2,13 +2,10 @@ package com.dailywell.app.ui.screens.biometric
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,12 +15,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.sp
 import com.dailywell.app.data.model.*
-import com.dailywell.app.core.theme.Primary
-import com.dailywell.app.core.theme.PrimaryLight
-import com.dailywell.app.core.theme.Secondary
-import com.dailywell.app.core.theme.SecondaryLight
+import com.dailywell.app.ui.components.*
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,113 +30,118 @@ fun BiometricScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Biometric Dashboard") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text(text = "←", fontSize = 24.sp)
-                    }
-                },
-                actions = {
-                    if (uiState.connectedDevices.isNotEmpty()) {
-                        IconButton(
-                            onClick = { viewModel.syncAllDevices() },
-                            enabled = !uiState.isSyncing
-                        ) {
-                            if (uiState.isSyncing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = Secondary,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text("🔄", fontSize = 20.sp)
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                PremiumTopBar(
+                    title = "Biometric Dashboard",
+                    subtitle = "Sleep, HRV, and recovery signals",
+                    onNavigationClick = onBack,
+                    trailingActions = {
+                        if (uiState.connectedDevices.isNotEmpty()) {
+                            IconButton(
+                                onClick = { viewModel.syncAllDevices() },
+                                enabled = !uiState.isSyncing
+                            ) {
+                                if (uiState.isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = DailyWellIcons.Actions.Sync,
+                                        contentDescription = "Sync",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
                 )
-            )
-        }
-    ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Secondary)
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                // Tab selector
-                TabRow(
-                    selectedTabIndex = BiometricTab.entries.indexOf(uiState.selectedTab),
-                    containerColor = MaterialTheme.colorScheme.background
+        ) { paddingValues ->
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    BiometricTab.entries.forEach { tab ->
-                        Tab(
-                            selected = uiState.selectedTab == tab,
-                            onClick = { viewModel.selectTab(tab) },
-                            text = {
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(tab.emoji)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(tab.title, fontSize = 12.sp)
-                                }
-                            }
-                        )
-                    }
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-
-                // Content based on selected tab
-                AnimatedContent(
-                    targetState = uiState.selectedTab,
-                    transitionSpec = {
-                        fadeIn() togetherWith fadeOut()
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    // Tab selector
+                    TabRow(
+                        selectedTabIndex = BiometricTab.entries.indexOf(uiState.selectedTab),
+                        containerColor = Color.Transparent
+                    ) {
+                        BiometricTab.entries.forEach { tab ->
+                            Tab(
+                                selected = uiState.selectedTab == tab,
+                                onClick = { viewModel.selectTab(tab) },
+                                text = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(tab.title, fontSize = 12.sp)
+                                    }
+                                }
+                            )
+                        }
                     }
-                ) { tab ->
-                    when (tab) {
-                        BiometricTab.OVERVIEW -> OverviewTab(
-                            uiState = uiState,
-                            viewModel = viewModel,
-                            onConnectDevice = { viewModel.showDeviceConnectDialog(true) }
-                        )
-                        BiometricTab.SLEEP -> SleepTab(
-                            sleepRecords = uiState.sleepRecords,
-                            viewModel = viewModel
-                        )
-                        BiometricTab.HRV -> HrvTab(
-                            hrvRecords = uiState.hrvRecords,
-                            viewModel = viewModel
-                        )
-                        BiometricTab.CORRELATIONS -> CorrelationsTab(
-                            correlations = uiState.correlations,
-                            insights = uiState.insights,
-                            onDismissInsight = { viewModel.dismissInsight(it) }
-                        )
+
+                    // Content based on selected tab
+                    AnimatedContent(
+                        targetState = uiState.selectedTab,
+                        transitionSpec = {
+                            fadeIn() togetherWith fadeOut()
+                        }
+                    ) { tab ->
+                        when (tab) {
+                            BiometricTab.OVERVIEW -> OverviewTab(
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                onConnectDevice = { viewModel.showDeviceConnectDialog(true) }
+                            )
+                            BiometricTab.SLEEP -> SleepTab(
+                                sleepRecords = uiState.sleepRecords,
+                                viewModel = viewModel
+                            )
+                            BiometricTab.HRV -> HrvTab(
+                                hrvRecords = uiState.hrvRecords,
+                                viewModel = viewModel
+                            )
+                            BiometricTab.CORRELATIONS -> CorrelationsTab(
+                                correlations = uiState.correlations,
+                                insights = uiState.insights,
+                                onDismissInsight = { viewModel.dismissInsight(it) }
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // Device connect dialog
-        if (uiState.showDeviceConnectDialog) {
-            DeviceConnectDialog(
-                connectedDevices = uiState.connectedDevices,
-                onConnect = { viewModel.connectDevice(it) },
-                onDismiss = { viewModel.showDeviceConnectDialog(false) }
-            )
+            // Device connect dialog
+            if (uiState.showDeviceConnectDialog) {
+                DeviceConnectDialog(
+                    connectedDevices = uiState.connectedDevices,
+                    onConnect = { viewModel.connectDevice(it) },
+                    onDismiss = { viewModel.showDeviceConnectDialog(false) }
+                )
+            }
         }
     }
 }
@@ -161,50 +161,57 @@ private fun OverviewTab(
         // Connect devices prompt if none connected
         if (uiState.connectedDevices.isEmpty()) {
             item {
-                ConnectDevicesCard(onConnect = onConnectDevice)
+                StaggeredItem(index = 0) {
+                    ConnectDevicesCard(onConnect = onConnectDevice)
+                }
             }
         }
 
         // Recovery Score Card
         item {
-            RecoveryScoreCard(
-                score = uiState.dashboardSummary.todayRecoveryScore,
-                viewModel = viewModel
-            )
+            StaggeredItem(index = 1) {
+                RecoveryScoreCard(
+                    score = uiState.dashboardSummary.todayRecoveryScore,
+                    viewModel = viewModel
+                )
+            }
         }
 
         // Quick Stats Row
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickStatCard(
-                    modifier = Modifier.weight(1f),
-                    emoji = "😴",
-                    title = "Sleep",
-                    value = "${"%.1f".format(uiState.dashboardSummary.avgSleepDuration)}h",
-                    subtitle = "7-day avg"
-                )
-                QuickStatCard(
-                    modifier = Modifier.weight(1f),
-                    emoji = "💗",
-                    title = "HRV Trend",
-                    value = viewModel.formatHrvTrend(uiState.dashboardSummary.weeklyHrvTrend),
-                    subtitle = "vs last week",
-                    valueColor = if (uiState.dashboardSummary.weeklyHrvTrend >= 0) Secondary else Color(0xFFE57373)
-                )
+            StaggeredItem(index = 2) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    QuickStatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = DailyWellIcons.Habits.Sleep,
+                        title = "Sleep",
+                        value = "${"%.1f".format(uiState.dashboardSummary.avgSleepDuration)}h",
+                        subtitle = "7-day avg"
+                    )
+                    QuickStatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = DailyWellIcons.Health.Heart,
+                        title = "HRV Trend",
+                        value = viewModel.formatHrvTrend(uiState.dashboardSummary.weeklyHrvTrend),
+                        subtitle = "vs last week",
+                        valueColor = if (uiState.dashboardSummary.weeklyHrvTrend >= 0) MaterialTheme.colorScheme.primary else Color(0xFFE57373)
+                    )
+                }
             }
         }
 
         // Latest insights
         if (uiState.insights.isNotEmpty()) {
             item {
-                Text(
-                    text = "Latest Insights",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                StaggeredItem(index = 3) {
+                    PremiumSectionChip(
+                        text = "Latest insights",
+                        icon = DailyWellIcons.Analytics.Pattern
+                    )
+                }
             }
 
             items(uiState.insights.take(3)) { insight ->
@@ -218,26 +225,31 @@ private fun OverviewTab(
         // Top correlation
         uiState.dashboardSummary.topCorrelation?.let { correlation ->
             item {
-                Text(
-                    text = "Top Correlation",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                StaggeredItem(index = 4) {
+                    PremiumSectionChip(
+                        text = "Top correlation",
+                        icon = DailyWellIcons.Analytics.Correlation
+                    )
+                }
             }
 
             item {
-                CorrelationCard(correlation = correlation)
+                StaggeredItem(index = 5) {
+                    CorrelationCard(correlation = correlation)
+                }
             }
         }
 
         // Connected devices
         if (uiState.connectedDevices.isNotEmpty()) {
             item {
-                Text(
-                    text = "Connected Devices",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                StaggeredItem(index = 6) {
+                    Text(
+                        text = "Connected Devices",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             items(uiState.connectedDevices) { device ->
@@ -267,32 +279,38 @@ private fun SleepTab(
     ) {
         if (sleepRecords.isEmpty()) {
             item {
-                EmptyDataCard(
-                    emoji = "😴",
-                    title = "No Sleep Data",
-                    description = "Connect a device or log your sleep manually to see insights."
-                )
+                StaggeredItem(index = 0) {
+                    EmptyDataCard(
+                        icon = DailyWellIcons.Habits.Sleep,
+                        title = "No Sleep Data",
+                        description = "Connect a device or log your sleep manually to see insights."
+                    )
+                }
             }
         } else {
             // Sleep summary
             item {
-                val avgDuration = sleepRecords.map { it.durationMinutes }.average().toFloat() / 60f
-                val avgDeepSleep = sleepRecords.map { it.deepSleepMinutes }.average().toFloat() / 60f
-                val avgEfficiency = sleepRecords.map { it.efficiency }.average().toFloat()
+                StaggeredItem(index = 0) {
+                    val avgDuration = sleepRecords.map { it.durationMinutes }.average().toFloat() / 60f
+                    val avgDeepSleep = sleepRecords.map { it.deepSleepMinutes }.average().toFloat() / 60f
+                    val avgEfficiency = sleepRecords.map { it.efficiency }.average().toFloat()
 
-                SleepSummaryCard(
-                    avgDuration = avgDuration,
-                    avgDeepSleep = avgDeepSleep,
-                    avgEfficiency = avgEfficiency
-                )
+                    SleepSummaryCard(
+                        avgDuration = avgDuration,
+                        avgDeepSleep = avgDeepSleep,
+                        avgEfficiency = avgEfficiency
+                    )
+                }
             }
 
             item {
-                Text(
-                    text = "Recent Sleep",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                StaggeredItem(index = 1) {
+                    Text(
+                        text = "Recent Sleep",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             items(sleepRecords.take(7)) { record ->
@@ -319,36 +337,44 @@ private fun HrvTab(
     ) {
         if (hrvRecords.isEmpty()) {
             item {
-                EmptyDataCard(
-                    emoji = "💗",
-                    title = "No HRV Data",
-                    description = "Connect a wearable device to track your heart rate variability."
-                )
+                StaggeredItem(index = 0) {
+                    EmptyDataCard(
+                        icon = DailyWellIcons.Health.Heart,
+                        title = "No HRV Data",
+                        description = "Connect a wearable device to track your heart rate variability."
+                    )
+                }
             }
         } else {
             // HRV explanation
             item {
-                HrvExplanationCard()
+                StaggeredItem(index = 0) {
+                    HrvExplanationCard()
+                }
             }
 
             // HRV summary
             item {
-                val avgHrv = hrvRecords.map { it.avgHrv }.average().toFloat()
-                val avgRhr = hrvRecords.map { it.restingHeartRate }.average().toInt()
+                StaggeredItem(index = 1) {
+                    val avgHrv = hrvRecords.map { it.avgHrv }.average().toFloat()
+                    val avgRhr = hrvRecords.map { it.restingHeartRate }.average().toInt()
 
-                HrvSummaryCard(
-                    avgHrv = avgHrv,
-                    avgRhr = avgRhr,
-                    recordCount = hrvRecords.size
-                )
+                    HrvSummaryCard(
+                        avgHrv = avgHrv,
+                        avgRhr = avgRhr,
+                        recordCount = hrvRecords.size
+                    )
+                }
             }
 
             item {
-                Text(
-                    text = "Recent Readings",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                StaggeredItem(index = 2) {
+                    Text(
+                        text = "Recent Readings",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             items(hrvRecords.take(7)) { record ->
@@ -376,46 +402,56 @@ private fun CorrelationsTab(
     ) {
         // Explanation
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = PrimaryLight.copy(alpha = 0.3f)),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🔬", fontSize = 24.sp)
-                        Spacer(modifier = Modifier.width(12.dp))
+            StaggeredItem(index = 0) {
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = ElevationLevel.Subtle
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = DailyWellIcons.Analytics.Correlation,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "How Correlations Work",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "How Correlations Work",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            text = "We analyze your biometric data alongside your habit completions to discover hidden patterns. More data = better insights!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "We analyze your biometric data alongside your habit completions to discover hidden patterns. More data = better insights!",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
         }
 
         if (correlations.isEmpty()) {
             item {
-                EmptyDataCard(
-                    emoji = "📊",
-                    title = "Building Correlations",
-                    description = "Keep tracking your habits and biometrics. We need at least 7 days of data to find meaningful patterns."
-                )
+                StaggeredItem(index = 1) {
+                    EmptyDataCard(
+                        icon = DailyWellIcons.Analytics.BarChart,
+                        title = "Building Correlations",
+                        description = "Keep tracking your habits and biometrics. We need at least 7 days of data to find meaningful patterns."
+                    )
+                }
             }
         } else {
             item {
-                Text(
-                    text = "Discovered Correlations",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                StaggeredItem(index = 1) {
+                    Text(
+                        text = "Discovered Correlations",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             items(correlations) { correlation ->
@@ -433,12 +469,14 @@ private fun CorrelationsTab(
 
         if (correlationInsights.isNotEmpty()) {
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Related Insights",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                StaggeredItem(index = 2) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Related Insights",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             items(correlationInsights) { insight ->
@@ -459,18 +497,22 @@ private fun CorrelationsTab(
 
 @Composable
 private fun ConnectDevicesCard(onConnect: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onConnect() },
-        colors = CardDefaults.cardColors(containerColor = Secondary.copy(alpha = 0.1f)),
-        shape = RoundedCornerShape(16.dp)
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = ElevationLevel.Prominent,
+        enablePressScale = true,
+        onClick = onConnect
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("📱", fontSize = 40.sp)
+            Icon(
+                imageVector = DailyWellIcons.Misc.Phone,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "Connect Your Devices",
@@ -487,7 +529,7 @@ private fun ConnectDevicesCard(onConnect: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onConnect,
-                colors = ButtonDefaults.buttonColors(containerColor = Secondary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Connect Device")
             }
@@ -501,16 +543,15 @@ private fun RecoveryScoreCard(
     viewModel: BiometricViewModel
 ) {
     val scoreColor = when (viewModel.getRecoveryScoreColor(score)) {
-        "green" -> Secondary
+        "green" -> MaterialTheme.colorScheme.primary
         "yellow" -> Color(0xFFFFB74D)
         "orange" -> Color(0xFFFF8A65)
         else -> Color(0xFFE57373)
     }
 
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = scoreColor.copy(alpha = 0.15f)),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Prominent
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -548,16 +589,34 @@ private fun RecoveryScoreCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = when {
-                    score >= 80 -> "🟢 Excellent! You're ready to push hard today."
-                    score >= 60 -> "🟡 Good. Moderate intensity recommended."
-                    score >= 40 -> "🟠 Fair. Consider lighter activities."
-                    else -> "🔴 Low. Focus on rest and recovery."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = when {
+                        score >= 80 -> DailyWellIcons.Status.Success
+                        score >= 60 -> DailyWellIcons.Status.Info
+                        score >= 40 -> DailyWellIcons.Status.Warning
+                        else -> DailyWellIcons.Status.Error
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = scoreColor
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = when {
+                        score >= 80 -> "Excellent! You're ready to push hard today."
+                        score >= 60 -> "Good. Moderate intensity recommended."
+                        score >= 40 -> "Fair. Consider lighter activities."
+                        else -> "Low. Focus on rest and recovery."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -565,22 +624,26 @@ private fun RecoveryScoreCard(
 @Composable
 private fun QuickStatCard(
     modifier: Modifier = Modifier,
-    emoji: String,
+    icon: ImageVector,
     title: String,
     value: String,
     subtitle: String,
     valueColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    Card(
+    GlassCard(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(emoji, fontSize = 24.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = title,
@@ -608,16 +671,15 @@ private fun BiometricInsightCard(
     onDismiss: () -> Unit
 ) {
     val severityColor = when (insight.severity) {
-        InsightSeverity.SUCCESS -> Secondary
+        InsightSeverity.SUCCESS -> MaterialTheme.colorScheme.primary
         InsightSeverity.WARNING -> Color(0xFFFFB74D)
         InsightSeverity.ALERT -> Color(0xFFE57373)
-        InsightSeverity.INFO -> Primary
+        InsightSeverity.INFO -> MaterialTheme.colorScheme.primary
     }
 
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = severityColor.copy(alpha = 0.1f)),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -626,7 +688,17 @@ private fun BiometricInsightCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(insight.emoji, fontSize = 24.sp)
+                    Icon(
+                        imageVector = when (insight.severity) {
+                            InsightSeverity.SUCCESS -> DailyWellIcons.Status.Success
+                            InsightSeverity.WARNING -> DailyWellIcons.Status.Warning
+                            InsightSeverity.ALERT -> DailyWellIcons.Status.Error
+                            InsightSeverity.INFO -> DailyWellIcons.Status.Info
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = severityColor
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = insight.title,
@@ -634,11 +706,14 @@ private fun BiometricInsightCard(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Text(
-                    text = "✕",
-                    modifier = Modifier.clickable { onDismiss() },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        imageVector = DailyWellIcons.Nav.Close,
+                        contentDescription = "Dismiss",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -650,12 +725,21 @@ private fun BiometricInsightCard(
 
             insight.recommendation?.let { rec ->
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "💡 $rec",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = severityColor,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = DailyWellIcons.Onboarding.Philosophy,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = severityColor
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = rec,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = severityColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -663,14 +747,18 @@ private fun BiometricInsightCard(
 
 @Composable
 private fun CorrelationCard(correlation: BiometricCorrelation) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E5F5)),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(correlation.biometricType.emoji, fontSize = 20.sp)
+                Icon(
+                    imageVector = DailyWellIcons.Health.Biometric,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = correlation.habitName,
@@ -678,17 +766,18 @@ private fun CorrelationCard(correlation: BiometricCorrelation) {
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = when (correlation.direction) {
-                        CorrelationDirection.POSITIVE -> "↑"
-                        CorrelationDirection.NEGATIVE -> "↓"
-                        CorrelationDirection.NEUTRAL -> "↔"
+                Icon(
+                    imageVector = when (correlation.direction) {
+                        CorrelationDirection.POSITIVE -> DailyWellIcons.Analytics.TrendUp
+                        CorrelationDirection.NEGATIVE -> DailyWellIcons.Analytics.TrendDown
+                        CorrelationDirection.NEUTRAL -> DailyWellIcons.Analytics.TrendFlat
                     },
-                    fontSize = 16.sp,
-                    color = when (correlation.direction) {
-                        CorrelationDirection.POSITIVE -> Secondary
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = when (correlation.direction) {
+                        CorrelationDirection.POSITIVE -> MaterialTheme.colorScheme.primary
                         CorrelationDirection.NEGATIVE -> Color(0xFFE57373)
-                        CorrelationDirection.NEUTRAL -> Color.Gray
+                        CorrelationDirection.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -715,23 +804,32 @@ private fun CorrelationCard(correlation: BiometricCorrelation) {
                 Text(
                     text = "Confidence: ${(correlation.confidence * 100).toInt()}%",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "${correlation.dataPoints} data points",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "💡 ${correlation.recommendation}",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = Secondary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = DailyWellIcons.Onboarding.Philosophy,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = correlation.recommendation,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
@@ -741,10 +839,9 @@ private fun ConnectedDeviceCard(
     device: ConnectedDevice,
     onDisconnect: () -> Unit
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Row(
             modifier = Modifier
@@ -754,15 +851,17 @@ private fun ConnectedDeviceCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = when (device.source) {
-                        BiometricSource.OURA -> "💍"
-                        BiometricSource.WHOOP -> "⌚"
-                        BiometricSource.APPLE_HEALTH -> "❤️"
-                        BiometricSource.GOOGLE_FIT -> "💚"
-                        else -> "📱"
+                Icon(
+                    imageVector = when (device.source) {
+                        BiometricSource.OURA -> DailyWellIcons.Health.Biometric
+                        BiometricSource.WHOOP -> DailyWellIcons.Misc.Timer
+                        BiometricSource.APPLE_HEALTH -> DailyWellIcons.Health.Heart
+                        BiometricSource.GOOGLE_FIT -> DailyWellIcons.Health.HealthConnect
+                        else -> DailyWellIcons.Misc.Phone
                     },
-                    fontSize = 24.sp
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -792,10 +891,9 @@ private fun SleepSummaryCard(
     avgDeepSleep: Float,
     avgEfficiency: Float
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6)),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Prominent
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -809,7 +907,12 @@ private fun SleepSummaryCard(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("😴", fontSize = 24.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.Habits.Sleep,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Text(
                         text = "${"%.1f".format(avgDuration)}h",
                         style = MaterialTheme.typography.titleLarge,
@@ -822,7 +925,12 @@ private fun SleepSummaryCard(
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🌙", fontSize = 24.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.Misc.Night,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Text(
                         text = "${"%.1f".format(avgDeepSleep)}h",
                         style = MaterialTheme.typography.titleLarge,
@@ -835,7 +943,12 @@ private fun SleepSummaryCard(
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("✨", fontSize = 24.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.Misc.Sparkle,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Text(
                         text = "${avgEfficiency.toInt()}%",
                         style = MaterialTheme.typography.titleLarge,
@@ -857,10 +970,9 @@ private fun SleepRecordCard(
     record: SleepBiometricRecord,
     viewModel: BiometricViewModel
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Row(
             modifier = Modifier
@@ -904,7 +1016,7 @@ private fun SleepRecordCard(
                         text = "${record.efficiency.toInt()}%",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = if (record.efficiency >= 85) Secondary else Color(0xFFFFB74D)
+                        color = if (record.efficiency >= 85) MaterialTheme.colorScheme.primary else Color(0xFFFFB74D)
                     )
                 }
             }
@@ -914,14 +1026,18 @@ private fun SleepRecordCard(
 
 @Composable
 private fun HrvExplanationCard() {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("💗", fontSize = 24.sp)
+                Icon(
+                    imageVector = DailyWellIcons.Health.Heart,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = Color(0xFFE57373)
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "What is HRV?",
@@ -945,10 +1061,9 @@ private fun HrvSummaryCard(
     avgRhr: Int,
     recordCount: Int
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFCDD2)),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Prominent
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
@@ -962,7 +1077,12 @@ private fun HrvSummaryCard(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("💗", fontSize = 24.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.Health.Heart,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = Color(0xFFE57373)
+                    )
                     Text(
                         text = "${avgHrv.toInt()}ms",
                         style = MaterialTheme.typography.titleLarge,
@@ -975,7 +1095,12 @@ private fun HrvSummaryCard(
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("❤️", fontSize = 24.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.Health.Biometric,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = Color(0xFFE57373)
+                    )
                     Text(
                         text = "$avgRhr bpm",
                         style = MaterialTheme.typography.titleLarge,
@@ -988,7 +1113,12 @@ private fun HrvSummaryCard(
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("📊", fontSize = 24.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.Analytics.BarChart,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Text(
                         text = "$recordCount",
                         style = MaterialTheme.typography.titleLarge,
@@ -1007,10 +1137,9 @@ private fun HrvSummaryCard(
 
 @Composable
 private fun HrvRecordCard(record: HrvRecord) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(12.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Row(
             modifier = Modifier
@@ -1054,7 +1183,7 @@ private fun HrvRecordCard(record: HrvRecord) {
                         text = "${record.restingHeartRate}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = if (record.restingHeartRate <= 60) Secondary else MaterialTheme.colorScheme.onSurface
+                        color = if (record.restingHeartRate <= 60) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -1064,14 +1193,13 @@ private fun HrvRecordCard(record: HrvRecord) {
 
 @Composable
 private fun EmptyDataCard(
-    emoji: String,
+    icon: ImageVector,
     title: String,
     description: String
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Subtle
     ) {
         Column(
             modifier = Modifier
@@ -1079,7 +1207,12 @@ private fun EmptyDataCard(
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(emoji, fontSize = 48.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = title,
@@ -1125,12 +1258,11 @@ private fun DeviceConnectDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 availableSources.forEach { source ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onConnect(source) },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(12.dp)
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = ElevationLevel.Subtle,
+                        enablePressScale = true,
+                        onClick = { onConnect(source) }
                     ) {
                         Row(
                             modifier = Modifier
@@ -1138,17 +1270,19 @@ private fun DeviceConnectDialog(
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = when (source) {
-                                    BiometricSource.OURA -> "💍"
-                                    BiometricSource.WHOOP -> "⌚"
-                                    BiometricSource.APPLE_HEALTH -> "❤️"
-                                    BiometricSource.GOOGLE_FIT -> "💚"
-                                    BiometricSource.FITBIT -> "🏃"
-                                    BiometricSource.GARMIN -> "🎯"
-                                    else -> "📱"
+                            Icon(
+                                imageVector = when (source) {
+                                    BiometricSource.OURA -> DailyWellIcons.Health.Biometric
+                                    BiometricSource.WHOOP -> DailyWellIcons.Misc.Timer
+                                    BiometricSource.APPLE_HEALTH -> DailyWellIcons.Health.Heart
+                                    BiometricSource.GOOGLE_FIT -> DailyWellIcons.Health.HealthConnect
+                                    BiometricSource.FITBIT -> DailyWellIcons.Habits.Move
+                                    BiometricSource.GARMIN -> DailyWellIcons.Habits.Intentions
+                                    else -> DailyWellIcons.Misc.Phone
                                 },
-                                fontSize = 24.sp
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(

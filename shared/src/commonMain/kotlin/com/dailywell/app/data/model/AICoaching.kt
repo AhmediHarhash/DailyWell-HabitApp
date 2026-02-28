@@ -45,8 +45,21 @@ data class CoachingMessage(
     val role: MessageRole,
     val content: String,
     val timestamp: String,
+    val modelUsed: AIModelUsed? = null,
     val suggestions: List<String> = emptyList(),
     val actionButtons: List<CoachingAction> = emptyList()
+)
+
+@Serializable
+data class ScanToCoachHandoff(
+    val mealName: String,
+    val calories: Int,
+    val protein: Int,
+    val carbs: Int,
+    val fat: Int,
+    val confidencePercent: Int,
+    val source: String,
+    val capturedAt: String
 )
 
 @Serializable
@@ -313,7 +326,7 @@ object CoachPersonas {
         strengthAreas = listOf("Energy Boost", "Challenge Pushing", "Peak Performance")
     )
 
-    val allCoaches = listOf(supportiveSam, analyticalAlex, directDana, gentleGrace, motivationalMike)
+    val allCoaches = listOf(supportiveSam)
 
     fun getCoach(style: CoachingStyle): CoachPersona {
         return allCoaches.find { it.style == style } ?: supportiveSam

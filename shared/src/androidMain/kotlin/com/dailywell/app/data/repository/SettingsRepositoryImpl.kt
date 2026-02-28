@@ -33,6 +33,10 @@ class SettingsRepositoryImpl(
         }
     }
 
+    override suspend fun getSettingsSnapshot(): UserSettings {
+        return getSettings().first()
+    }
+
     override suspend fun updateSettings(settings: UserSettings) {
         dataStoreManager.putString(
             PreferencesKeys.USER_SETTINGS,
@@ -106,5 +110,25 @@ class SettingsRepositoryImpl(
         val current = getSettings().first()
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
         return current.trialDaysRemaining(today)
+    }
+
+    // Quick water tracking — lightweight daily glass count for the Today screen.
+    // This is a convenience accessor using ad-hoc DataStore keys, NOT a replacement
+    // for WaterTrackingRepository which handles full history, goals, and analytics.
+    override suspend fun getWaterCount(date: String): Int {
+        return dataStoreManager.getString("water_count_$date").first()?.toIntOrNull() ?: 0
+    }
+
+    override suspend fun setWaterCount(date: String, count: Int) {
+        dataStoreManager.putString("water_count_$date", count.toString())
+    }
+
+    // First-day tutorial overlay
+    override suspend fun getHasSeenTutorial(): Boolean {
+        return dataStoreManager.getString("has_seen_tutorial").first()?.toBooleanStrictOrNull() ?: false
+    }
+
+    override suspend fun setHasSeenTutorial(seen: Boolean) {
+        dataStoreManager.putString("has_seen_tutorial", seen.toString())
     }
 }

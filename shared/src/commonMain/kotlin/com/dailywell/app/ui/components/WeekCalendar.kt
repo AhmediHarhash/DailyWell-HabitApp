@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,7 +15,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,11 +38,17 @@ fun WeekCalendar(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            weekData.days.forEach { dayStatus ->
-                DayIndicator(
-                    dayStatus = dayStatus,
-                    modifier = Modifier.weight(1f)
-                )
+            // C1: Staggered entrance for day indicators
+            weekData.days.forEachIndexed { index, dayStatus ->
+                Box(modifier = Modifier.weight(1f)) {
+                    StaggeredItem(
+                        index = index,
+                        delayPerItem = 40L,
+                        baseDelay = 50L
+                    ) {
+                        DayIndicator(dayStatus = dayStatus)
+                    }
+                }
             }
         }
     }
@@ -68,6 +77,12 @@ private fun DayIndicator(
         else -> MaterialTheme.colorScheme.onSurface
     }
 
+    // C2: Today indicator pulse
+    val todayPulse = if (dayStatus.isToday) rememberPulseScale(1f, 1.06f, 1200) else 1f
+
+    // C3: Completed day glow color
+    val glowColor = if (dayStatus.status == CompletionStatus.COMPLETE) Success.copy(alpha = 0.3f) else Color.Transparent
+
     Column(
         modifier = modifier.padding(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -88,6 +103,20 @@ private fun DayIndicator(
         Box(
             modifier = Modifier
                 .size(32.dp)
+                // C3: Subtle glow behind completed circles
+                .drawBehind {
+                    if (glowColor != Color.Transparent) {
+                        drawCircle(
+                            color = glowColor,
+                            radius = size.minDimension / 2 + 4.dp.toPx()
+                        )
+                    }
+                }
+                // C2: Apply pulse to today's indicator
+                .graphicsLayer {
+                    scaleX = todayPulse
+                    scaleY = todayPulse
+                }
                 .clip(CircleShape)
                 .background(backgroundColor)
                 .then(
@@ -103,38 +132,40 @@ private fun DayIndicator(
         ) {
             when (dayStatus.status) {
                 CompletionStatus.COMPLETE -> {
-                    Text(
-                        text = "✓",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        imageVector = DailyWellIcons.Actions.Check,
+                        contentDescription = "Complete",
+                        modifier = Modifier.size(14.dp),
+                        tint = Color.White
                     )
                 }
                 CompletionStatus.PARTIAL -> {
-                    Text(
-                        text = "◐",
-                        color = Color.White,
-                        fontSize = 14.sp
+                    Icon(
+                        imageVector = DailyWellIcons.Actions.Remove,
+                        contentDescription = "Partial",
+                        modifier = Modifier.size(14.dp),
+                        tint = Color.White
                     )
                 }
                 CompletionStatus.NONE -> {
-                    Text(
-                        text = "✗",
-                        color = Color.White,
-                        fontSize = 12.sp
+                    Icon(
+                        imageVector = DailyWellIcons.Nav.Close,
+                        contentDescription = "Missed",
+                        modifier = Modifier.size(12.dp),
+                        tint = Color.White
                     )
                 }
                 CompletionStatus.FUTURE -> {
                     Text(
-                        text = "•",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                        text = "\u2022",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                         fontSize = 14.sp
                     )
                 }
                 CompletionStatus.NO_DATA -> {
                     Text(
-                        text = "–",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                        text = "\u2013",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         fontSize = 14.sp
                     )
                 }

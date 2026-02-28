@@ -3,22 +3,72 @@ package com.dailywell.app.data.repository
 import com.dailywell.app.api.HealthConnectService
 import com.dailywell.app.data.local.DataStoreManager
 import com.dailywell.app.data.model.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Implementation of BiometricRepository with REAL Health Connect integration
+ * Persists biometric data to DataStore so it survives app restarts
  */
 class BiometricRepositoryImpl(
     private val dataStoreManager: DataStoreManager,
     private val healthConnectService: HealthConnectService
 ) : BiometricRepository {
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    private companion object {
+        const val BIOMETRIC_DATA_KEY = "biometric_data"
+        const val RECOVERY_SCORE_KEY = "biometric_recovery_score"
+    }
+
     private val _biometricData = MutableStateFlow(BiometricData())
     private val _recoveryScore = MutableStateFlow(50)
     private val _connectionStatus = MutableStateFlow(HealthConnectService.ConnectionStatus.NOT_CHECKED)
+
+    init {
+        scope.launch {
+            try {
+                val dataJson = dataStoreManager.getString(BIOMETRIC_DATA_KEY).first()
+                if (dataJson != null) {
+                    _biometricData.value = json.decodeFromString<BiometricData>(dataJson)
+                }
+            } catch (_: Exception) {}
+
+            try {
+                val scoreStr = dataStoreManager.getString(RECOVERY_SCORE_KEY).first()
+                if (scoreStr != null) {
+                    _recoveryScore.value = scoreStr.toIntOrNull() ?: 50
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun persistBiometricData() {
+        scope.launch {
+            try {
+                dataStoreManager.putString(BIOMETRIC_DATA_KEY, json.encodeToString(_biometricData.value))
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun persistRecoveryScore() {
+        scope.launch {
+            try {
+                dataStoreManager.putString(RECOVERY_SCORE_KEY, _recoveryScore.value.toString())
+            } catch (_: Exception) {}
+        }
+    }
 
     override fun getBiometricData(): Flow<BiometricData> = _biometricData
 
@@ -63,6 +113,7 @@ class BiometricRepositoryImpl(
         _biometricData.value = currentData.copy(
             sleepRecords = listOf(record) + currentData.sleepRecords
         )
+        persistBiometricData()
     }
 
     override fun getHrvRecords(days: Int): Flow<List<HrvRecord>> {
@@ -74,6 +125,7 @@ class BiometricRepositoryImpl(
         _biometricData.value = currentData.copy(
             hrvRecords = listOf(record) + currentData.hrvRecords
         )
+        persistBiometricData()
     }
 
     override fun getActivityRecords(days: Int): Flow<List<ActivityRecord>> {
@@ -85,6 +137,7 @@ class BiometricRepositoryImpl(
         _biometricData.value = currentData.copy(
             activityRecords = listOf(record) + currentData.activityRecords
         )
+        persistBiometricData()
     }
 
     override suspend fun connectDevice(source: BiometricSource, deviceName: String) {
@@ -249,6 +302,7 @@ class BiometricRepositoryImpl(
         // Calculate real recovery score
         val recoveryScore = healthConnectService.calculateRecoveryScore()
         _recoveryScore.value = recoveryScore
+        persistRecoveryScore()
 
         // Update biometric data with real values
         _biometricData.value = currentData.copy(
@@ -257,6 +311,7 @@ class BiometricRepositoryImpl(
             activityRecords = activityRecords.ifEmpty { currentData.activityRecords },
             lastSyncedAt = Clock.System.now().toString()
         )
+        persistBiometricData()
 
         // Generate insights based on real data
         generateInsights()
@@ -273,6 +328,7 @@ class BiometricRepositoryImpl(
         _biometricData.value = currentData.copy(
             correlations = newCorrelations.ifEmpty { currentData.correlations }
         )
+        persistBiometricData()
     }
 
     override suspend fun generateInsights() {
@@ -350,6 +406,7 @@ class BiometricRepositoryImpl(
             _biometricData.value = currentData.copy(
                 insights = newInsights + currentData.insights.take(10)
             )
+            persistBiometricData()
         }
     }
 
@@ -360,6 +417,7 @@ class BiometricRepositoryImpl(
         _biometricData.value = currentData.copy(
             insights = currentData.insights.filter { it.id != insightId }
         )
+        persistBiometricData()
     }
 
     // ==================== NEW HEALTH CONNECT SPECIFIC METHODS ====================

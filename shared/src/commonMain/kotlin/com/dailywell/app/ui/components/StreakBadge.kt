@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -50,10 +51,13 @@ fun StreakBadge(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "🔥",
-            fontSize = 20.sp,
-            modifier = Modifier.scale(if (streakInfo.currentStreak > 0) fireScale else 1f)
+        Icon(
+            imageVector = DailyWellIcons.Analytics.Streak,
+            contentDescription = "Streak",
+            modifier = Modifier
+                .size(20.dp)
+                .scale(if (streakInfo.currentStreak > 0) fireScale else 1f),
+            tint = StreakFire
         )
         Spacer(modifier = Modifier.width(8.dp))
         AnimatedContent(
@@ -93,7 +97,12 @@ fun CompactStreakBadge(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = "🔥", fontSize = 16.sp)
+        Icon(
+            imageVector = DailyWellIcons.Analytics.Streak,
+            contentDescription = "Streak",
+            modifier = Modifier.size(16.dp),
+            tint = StreakFire
+        )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = streak.toString(),

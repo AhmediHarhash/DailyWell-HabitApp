@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.encodeToString
@@ -144,8 +145,13 @@ class RecoveryRepositoryImpl(
 
     private fun calculateDaysBetween(start: String?, end: String): Int {
         if (start == null) return 1
-        // Simple calculation - in production would use proper date parsing
-        return 1
+        return try {
+            val startDate = LocalDate.parse(start)
+            val endDate = LocalDate.parse(end)
+            (endDate.toEpochDays() - startDate.toEpochDays()).coerceAtLeast(1)
+        } catch (_: Exception) {
+            1
+        }
     }
 
     private fun calculateAverageRecovery(history: List<RecoveryEvent>): Float {

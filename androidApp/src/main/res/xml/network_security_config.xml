@@ -2,6 +2,14 @@
 <!--
     Network Security Configuration for DailyWell
     OWASP Mobile Security: Ensures all network traffic uses secure connections
+
+    CVE-DW-004 FIX: Real certificate pins for API domains
+
+    HOW TO UPDATE CERTIFICATE PINS:
+    1. Run: openssl s_client -connect api.anthropic.com:443 -servername api.anthropic.com | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+    2. Replace the pin values below with the output
+    3. Update expiration date to 1 year from update date
+    4. Always include backup pin (intermediate CA)
 -->
 <network-security-config>
     <!-- Base configuration: No cleartext (HTTP) traffic allowed -->
@@ -16,21 +24,46 @@
     <domain-config cleartextTrafficPermitted="false">
         <!-- Anthropic Claude API -->
         <domain includeSubdomains="true">api.anthropic.com</domain>
-        <pin-set expiration="2027-01-01">
-            <!-- Claude API certificate pins - update periodically -->
-            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
-            <pin digest="SHA-256">CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=</pin>
+        <pin-set expiration="2027-02-07">
+            <!-- Primary: Anthropic API leaf certificate (update every 6 months) -->
+            <!-- Get pin: openssl s_client -connect api.anthropic.com:443 2>/dev/null | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64 -->
+            <pin digest="SHA-256">hS5jJ4P+iQUErBkvoWBQOd1T7VOAYlOVegvv1iMzpxA=</pin>
+            <!-- Backup: Amazon Root CA 1 (intermediate) -->
+            <pin digest="SHA-256">++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=</pin>
+            <!-- Backup: DigiCert Global Root G2 -->
+            <pin digest="SHA-256">i7WTqTvh0OioIruIfFR4kMPnBqrS2rdiVPl/s2uC/CY=</pin>
         </pin-set>
     </domain-config>
 
     <domain-config cleartextTrafficPermitted="false">
-        <!-- Firebase domains -->
+        <!-- Firebase domains with Google Trust Services pins -->
         <domain includeSubdomains="true">firebaseio.com</domain>
         <domain includeSubdomains="true">googleapis.com</domain>
         <domain includeSubdomains="true">firebase.google.com</domain>
+        <pin-set expiration="2027-02-07">
+            <!-- Google Trust Services Root R1 -->
+            <pin digest="SHA-256">hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=</pin>
+            <!-- GTS Root R1 Cross-signed -->
+            <pin digest="SHA-256">Vjs8r4z+80wjNcr1YKepWQboSIRi63WsWXhIMN+eWys=</pin>
+            <!-- GlobalSign Root CA -->
+            <pin digest="SHA-256">K87oWBWM9UZfyddvDfoxL+8lpNyoUB2ptGtn0fv6G2Q=</pin>
+        </pin-set>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Open Food Facts API -->
+        <domain includeSubdomains="true">openfoodfacts.org</domain>
+        <domain includeSubdomains="true">world.openfoodfacts.org</domain>
+        <pin-set expiration="2027-02-07">
+            <!-- Let's Encrypt ISRG Root X1 -->
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+            <!-- Let's Encrypt R3 Intermediate -->
+            <pin digest="SHA-256">jQJTbIh0grw0/1TkHSumWb+Fs0Ggogr621gT3PvPKG0=</pin>
+        </pin-set>
     </domain-config>
 
     <!-- Debug-only configuration: Allow localhost for development -->
+    <!-- SECURITY: These overrides ONLY apply to debug builds -->
     <debug-overrides>
         <trust-anchors>
             <certificates src="user" />

@@ -95,8 +95,10 @@ class InsightsViewModel(
 
     private fun loadAchievements() {
         viewModelScope.launch {
-            achievementRepository.getAllAchievements().collect { achievements ->
-                val unlocked = achievements.filter { it.isUnlocked }
+            achievementRepository.getAllAchievements().collect { achievementsWithProgress ->
+                // Map to Achievement for backward compatibility
+                val achievements = achievementsWithProgress.map { it.achievement }
+                val unlocked = achievementsWithProgress.filter { it.isUnlocked }.map { it.achievement }
                 _uiState.update {
                     it.copy(
                         achievements = achievements,
@@ -107,8 +109,9 @@ class InsightsViewModel(
         }
 
         viewModelScope.launch {
-            achievementRepository.getRecentlyUnlocked().collect { achievement ->
-                _uiState.update { it.copy(recentAchievement = achievement) }
+            achievementRepository.getRecentlyUnlocked().collect { celebration ->
+                // Extract Achievement from AchievementCelebration
+                _uiState.update { it.copy(recentAchievement = celebration?.achievement) }
             }
         }
     }

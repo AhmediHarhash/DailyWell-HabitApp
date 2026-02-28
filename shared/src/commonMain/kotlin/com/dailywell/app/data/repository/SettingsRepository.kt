@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface SettingsRepository {
     fun getSettings(): Flow<UserSettings>
+    suspend fun getSettingsSnapshot(): UserSettings
     suspend fun updateSettings(settings: UserSettings)
     suspend fun setOnboardingComplete()
     suspend fun enableHabit(habitId: String)
@@ -28,4 +29,16 @@ interface SettingsRepository {
      * Get remaining trial days (0 if not on trial or trial expired)
      */
     suspend fun getTrialDaysRemaining(): Int
+
+    /**
+     * Quick water tracking - daily water glass count
+     */
+    suspend fun getWaterCount(date: String): Int
+    suspend fun setWaterCount(date: String, count: Int)
+
+    /**
+     * First-day tutorial overlay tracking
+     */
+    suspend fun getHasSeenTutorial(): Boolean
+    suspend fun setHasSeenTutorial(seen: Boolean)
 }

@@ -120,3 +120,7 @@ __pycache__/
 # Accidental local files on Windows
 nul
 viewModel.toggleHabit(habit.id*
+
+# Local ML model weights (too large for git; keep local or use release artifacts)
+models/*.gguf
+slmModelPack/src/main/assets/slm/*.gguf

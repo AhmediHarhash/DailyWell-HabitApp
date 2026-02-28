@@ -3,6 +3,7 @@ package com.dailywell.app.billing
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
+import com.dailywell.shared.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +13,6 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
     companion object {
         const val PRODUCT_MONTHLY = "dailywell_premium_monthly"
         const val PRODUCT_ANNUAL = "dailywell_premium_annual"
-        const val PRODUCT_LIFETIME = "dailywell_premium_lifetime"
     }
 
     private val _isPremium = MutableStateFlow(false)
@@ -61,13 +61,6 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
                 .build()
         )
 
-        val inAppList = listOf(
-            QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(PRODUCT_LIFETIME)
-                .setProductType(BillingClient.ProductType.INAPP)
-                .build()
-        )
-
         // Query subscriptions
         val subsParams = QueryProductDetailsParams.newBuilder()
             .setProductList(subscriptionList)
@@ -78,20 +71,16 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
             currentProducts.addAll(productDetailsList)
             _products.value = currentProducts
         }
-
-        // Query in-app purchases
-        val inAppParams = QueryProductDetailsParams.newBuilder()
-            .setProductList(inAppList)
-            .build()
-
-        billingClient.queryProductDetailsAsync(inAppParams) { _, productDetailsList ->
-            val currentProducts = _products.value.toMutableList()
-            currentProducts.addAll(productDetailsList)
-            _products.value = currentProducts
-        }
     }
 
-    private fun queryPurchases() {
+    // Track pending query completions for restorePurchases
+    private var pendingQueryCount = 0
+    private var foundActivePurchase = false
+
+    private fun queryPurchases(onComplete: (() -> Unit)? = null) {
+        foundActivePurchase = false
+        pendingQueryCount = 2 // subs + inapp
+
         // Check subscriptions
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
@@ -99,6 +88,7 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
                 .build()
         ) { _, purchases ->
             handlePurchaseList(purchases)
+            onQueryComplete(onComplete)
         }
 
         // Check in-app purchases
@@ -108,6 +98,17 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
                 .build()
         ) { _, purchases ->
             handlePurchaseList(purchases)
+            onQueryComplete(onComplete)
+        }
+    }
+
+    private fun onQueryComplete(onComplete: (() -> Unit)?) {
+        pendingQueryCount--
+        if (pendingQueryCount <= 0) {
+            if (!foundActivePurchase) {
+                _isPremium.value = false
+            }
+            onComplete?.invoke()
         }
     }
 
@@ -117,6 +118,7 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
                 if (!purchase.isAcknowledged) {
                     acknowledgePurchase(purchase)
                 }
+                foundActivePurchase = true
                 _isPremium.value = true
             }
         }
@@ -160,11 +162,12 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
 
     fun restorePurchases() {
         _purchaseState.value = PurchaseState.Loading
-        queryPurchases()
-        _purchaseState.value = if (_isPremium.value) {
-            PurchaseState.Success
-        } else {
-            PurchaseState.NothingToRestore
+        queryPurchases {
+            _purchaseState.value = if (_isPremium.value) {
+                PurchaseState.Success
+            } else {
+                PurchaseState.NothingToRestore
+            }
         }
     }
 
@@ -187,9 +190,19 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
         _purchaseState.value = PurchaseState.Idle
     }
 
-    // For testing without Play Store
+    /**
+     * SECURITY: Testing function protected by BuildConfig.DEBUG
+     * This function is ONLY available in debug builds.
+     * In release builds, this function does nothing.
+     *
+     * CVE-DW-002 FIX: Prevents premium bypass in production
+     */
     fun setPremiumForTesting(isPremium: Boolean) {
-        _isPremium.value = isPremium
+        // SECURITY: Only allow in debug builds
+        if (BuildConfig.DEBUG) {
+            _isPremium.value = isPremium
+        }
+        // In release builds, this is a no-op (silently ignored)
     }
 }
 

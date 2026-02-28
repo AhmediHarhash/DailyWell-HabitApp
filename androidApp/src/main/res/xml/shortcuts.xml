@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Voice Shortcuts for Google Assistant
+    Enables "Hey Google, log my water" and similar commands
+    2026 UX standard for habit tracking apps
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Sleep / Rest habit -->
+    <shortcut
+        android:shortcutId="log_sleep"
+        android:enabled="true"
+        android:icon="@drawable/habit_rest"
+        android:shortcutShortLabel="@string/shortcut_log_sleep"
+        android:shortcutLongLabel="@string/shortcut_log_sleep_long">
+        <intent
+            android:action="com.dailywell.action.LOG_HABIT"
+            android:targetPackage="com.dailywell.android"
+            android:targetClass="com.dailywell.android.VoiceShortcutActivity">
+            <extra android:name="habit_id" android:value="sleep" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Water / Hydrate habit -->
+    <shortcut
+        android:shortcutId="log_water"
+        android:enabled="true"
+        android:icon="@drawable/habit_hydrate"
+        android:shortcutShortLabel="@string/shortcut_log_water"
+        android:shortcutLongLabel="@string/shortcut_log_water_long">
+        <intent
+            android:action="com.dailywell.action.LOG_HABIT"
+            android:targetPackage="com.dailywell.android"
+            android:targetClass="com.dailywell.android.VoiceShortcutActivity">
+            <extra android:name="habit_id" android:value="water" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Move / Exercise habit -->
+    <shortcut
+        android:shortcutId="log_move"
+        android:enabled="true"
+        android:icon="@drawable/habit_move"
+        android:shortcutShortLabel="@string/shortcut_log_move"
+        android:shortcutLongLabel="@string/shortcut_log_move_long">
+        <intent
+            android:action="com.dailywell.action.LOG_HABIT"
+            android:targetPackage="com.dailywell.android"
+            android:targetClass="com.dailywell.android.VoiceShortcutActivity">
+            <extra android:name="habit_id" android:value="move" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Vegetables / Nourish habit -->
+    <shortcut
+        android:shortcutId="log_vegetables"
+        android:enabled="true"
+        android:icon="@drawable/habit_nourish"
+        android:shortcutShortLabel="@string/shortcut_log_vegetables"
+        android:shortcutLongLabel="@string/shortcut_log_vegetables_long">
+        <intent
+            android:action="com.dailywell.action.LOG_HABIT"
+            android:targetPackage="com.dailywell.android"
+            android:targetClass="com.dailywell.android.VoiceShortcutActivity">
+            <extra android:name="habit_id" android:value="vegetables" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Calm / Meditation habit -->
+    <shortcut
+        android:shortcutId="log_calm"
+        android:enabled="true"
+        android:icon="@drawable/habit_calm"
+        android:shortcutShortLabel="@string/shortcut_log_calm"
+        android:shortcutLongLabel="@string/shortcut_log_calm_long">
+        <intent
+            android:action="com.dailywell.action.LOG_HABIT"
+            android:targetPackage="com.dailywell.android"
+            android:targetClass="com.dailywell.android.VoiceShortcutActivity">
+            <extra android:name="habit_id" android:value="calm" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Connect / Social habit -->
+    <shortcut
+        android:shortcutId="log_connect"
+        android:enabled="true"
+        android:icon="@drawable/habit_connect"
+        android:shortcutShortLabel="@string/shortcut_log_connect"
+        android:shortcutLongLabel="@string/shortcut_log_connect_long">
+        <intent
+            android:action="com.dailywell.action.LOG_HABIT"
+            android:targetPackage="com.dailywell.android"
+            android:targetClass="com.dailywell.android.VoiceShortcutActivity">
+            <extra android:name="habit_id" android:value="connect" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Unplug / Digital detox habit -->
+    <shortcut
+        android:shortcutId="log_unplug"
+        android:enabled="true"
+        android:icon="@drawable/habit_unplug"
+        android:shortcutShortLabel="@string/shortcut_log_unplug"
+        android:shortcutLongLabel="@string/shortcut_log_unplug_long">
+        <intent
+            android:action="com.dailywell.action.LOG_HABIT"
+            android:targetPackage="com.dailywell.android"
+            android:targetClass="com.dailywell.android.VoiceShortcutActivity">
+            <extra android:name="habit_id" android:value="unplug" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+</shortcuts>

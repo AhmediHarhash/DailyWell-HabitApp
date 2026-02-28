@@ -14,10 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import com.dailywell.app.core.theme.Success
 import com.dailywell.app.data.model.*
 import com.dailywell.app.domain.model.HabitType
+import com.dailywell.app.ui.components.*
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -40,7 +42,6 @@ fun IntentionsScreen(
             AddIntentionDialog(
                 habitId = habitType.id,
                 habitName = habitType.displayName,
-                habitEmoji = habitType.emoji,
                 onDismiss = {
                     showAddDialog = false
                     selectedHabitIdForAdd = null
@@ -54,127 +55,156 @@ fun IntentionsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "If-Then Plans",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text(text = "←", fontSize = 24.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    GlassScreenWrapper {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                PremiumTopBar(
+                    title = "If-Then Plans",
+                    subtitle = "Plan cues and actions",
+                    onNavigationClick = onBack
                 )
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Explanation card
-            item {
-                IntentionsExplanationCard()
             }
-
-            // Existing intentions grouped by habit
-            val intentionsByHabit = uiState.intentions.groupBy { it.habitId }
-
-            if (intentionsByHabit.isNotEmpty()) {
+        ) { paddingValues ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Explanation card
                 item {
-                    Text(
-                        text = "YOUR PLANS",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
+                    StaggeredItem(index = 0) {
+                        IntentionsExplanationCard()
+                    }
                 }
 
-                intentionsByHabit.forEach { (habitId, intentions) ->
-                    val habitType = HabitType.entries.find { it.id == habitId }
-                    if (habitType != null) {
-                        item {
-                            HabitIntentionsCard(
-                                habitId = habitType.id,
-                                habitName = habitType.displayName,
-                                habitEmoji = habitType.emoji,
-                                intentions = intentions,
-                                onToggle = { viewModel.toggleIntention(it) },
-                                onDelete = { viewModel.deleteIntention(it) },
-                                onAddMore = {
-                                    selectedHabitIdForAdd = habitType.id
-                                    showAddDialog = true
-                                }
+                // Existing intentions grouped by habit
+                val intentionsByHabit = uiState.intentions.groupBy { it.habitId }
+
+                if (intentionsByHabit.isEmpty()) {
+                    item {
+                        StaggeredItem(index = 1) {
+                            EmptyIntentionsCard()
+                        }
+                    }
+                }
+
+                if (intentionsByHabit.isNotEmpty()) {
+                    item {
+                        StaggeredItem(index = 1) {
+                            PremiumSectionChip(
+                                text = "Your plans",
+                                icon = DailyWellIcons.Habits.Intentions
                             )
                         }
                     }
-                }
-            }
 
-            // Quick add section - habits without intentions
-            val habitsWithoutIntentions = HabitType.entries.filter { habitType ->
-                !intentionsByHabit.containsKey(habitType.id)
-            }
-
-            if (habitsWithoutIntentions.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "ADD PLANS FOR",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                items(habitsWithoutIntentions) { habitType ->
-                    HabitAddIntentionCard(
-                        habitId = habitType.id,
-                        habitName = habitType.displayName,
-                        habitEmoji = habitType.emoji,
-                        templates = IntentionTemplates.getTemplatesForHabit(habitType.id),
-                        onAddCustom = {
-                            selectedHabitIdForAdd = habitType.id
-                            showAddDialog = true
-                        },
-                        onApplyTemplate = { template ->
-                            viewModel.applyTemplate(template)
+                    intentionsByHabit.forEach { (habitId, intentions) ->
+                        val habitType = HabitType.entries.find { it.id == habitId }
+                        if (habitType != null) {
+                            item {
+                                HabitIntentionsCard(
+                                    habitId = habitType.id,
+                                    habitName = habitType.displayName,
+                                    intentions = intentions,
+                                    onToggle = { viewModel.toggleIntention(it) },
+                                    onDelete = { viewModel.deleteIntention(it) },
+                                    onAddMore = {
+                                        selectedHabitIdForAdd = habitType.id
+                                        showAddDialog = true
+                                    }
+                                )
+                            }
                         }
-                    )
+                    }
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
+                // Quick add section - habits without intentions
+                val habitsWithoutIntentions = HabitType.entries.filter { habitType ->
+                    !intentionsByHabit.containsKey(habitType.id)
+                }
+
+                if (habitsWithoutIntentions.isNotEmpty()) {
+                    item {
+                        StaggeredItem(index = 2) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            PremiumSectionChip(
+                                text = "Add plans for",
+                                icon = DailyWellIcons.Actions.Add
+                            )
+                        }
+                    }
+
+                    items(habitsWithoutIntentions) { habitType ->
+                        HabitAddIntentionCard(
+                            habitId = habitType.id,
+                            habitName = habitType.displayName,
+                            templates = IntentionTemplates.getTemplatesForHabit(habitType.id),
+                            onAddCustom = {
+                                selectedHabitIdForAdd = habitType.id
+                                showAddDialog = true
+                            },
+                            onApplyTemplate = { template ->
+                                viewModel.applyTemplate(template)
+                            }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun IntentionsExplanationCard() {
-    Card(
+private fun EmptyIntentionsCard() {
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(16.dp)
+        elevation = ElevationLevel.Subtle
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = DailyWellIcons.Habits.Intentions,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "No if-then plans yet. Add one below to make your habits easier to start.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun IntentionsExplanationCard() {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = ElevationLevel.Prominent
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "🎯", fontSize = 32.sp)
+                Icon(
+                    imageVector = DailyWellIcons.Habits.Intentions,
+                    contentDescription = "Intentions",
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
@@ -215,17 +245,14 @@ private fun IntentionsExplanationCard() {
 private fun HabitIntentionsCard(
     habitId: String,
     habitName: String,
-    habitEmoji: String,
     intentions: List<ImplementationIntention>,
     onToggle: (String) -> Unit,
     onDelete: (String) -> Unit,
     onAddMore: () -> Unit
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        elevation = ElevationLevel.Subtle
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Habit header
@@ -235,7 +262,12 @@ private fun HabitIntentionsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = habitEmoji, fontSize = 24.sp)
+                    Icon(
+                        imageVector = DailyWellIcons.getHabitIcon(habitId),
+                        contentDescription = habitName,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = habitName,
@@ -287,9 +319,11 @@ private fun IntentionItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = intention.situation.emoji,
-                    fontSize = 20.sp
+                Icon(
+                    imageVector = getIntentionSituationIcon(intention.situation),
+                    contentDescription = intention.situation.description,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 Switch(
                     checked = intention.isEnabled,
@@ -352,20 +386,23 @@ private fun IntentionItem(
 private fun HabitAddIntentionCard(
     habitId: String,
     habitName: String,
-    habitEmoji: String,
     templates: List<IntentionTemplates.IntentionTemplate>,
     onAddCustom: () -> Unit,
     onApplyTemplate: (IntentionTemplates.IntentionTemplate) -> Unit
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        elevation = ElevationLevel.Subtle,
+        enablePressScale = true
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = habitEmoji, fontSize = 24.sp)
+                Icon(
+                    imageVector = DailyWellIcons.getHabitIcon(habitId),
+                    contentDescription = habitName,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
@@ -460,7 +497,6 @@ private fun SuggestedTemplateChip(
 private fun AddIntentionDialog(
     habitId: String,
     habitName: String,
-    habitEmoji: String,
     onDismiss: () -> Unit,
     onSave: (ImplementationIntention) -> Unit
 ) {
@@ -476,7 +512,12 @@ private fun AddIntentionDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = habitEmoji, fontSize = 24.sp)
+                Icon(
+                    imageVector = DailyWellIcons.getHabitIcon(habitId),
+                    contentDescription = habitName,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Plan for $habitName")
             }
@@ -505,9 +546,16 @@ private fun AddIntentionDialog(
                                     FilterChip(
                                         selected = selectedSituation == situation,
                                         onClick = { selectedSituation = situation },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = getIntentionSituationIcon(situation),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        },
                                         label = {
                                             Text(
-                                                text = "${situation.emoji} ${situation.description}",
+                                                text = situation.description,
                                                 style = MaterialTheme.typography.labelSmall
                                             )
                                         },
@@ -561,7 +609,7 @@ private fun AddIntentionDialog(
                     onClick = { showObstacleSection = !showObstacleSection }
                 ) {
                     Text(
-                        text = if (showObstacleSection) "− Hide obstacle planning"
+                        text = if (showObstacleSection) "- Hide obstacle planning"
                         else "+ Add obstacle planning (recommended)"
                     )
                 }
@@ -623,4 +671,31 @@ private fun AddIntentionDialog(
             }
         }
     )
+}
+
+/**
+ * Maps IntentionSituation enum values to appropriate Material Icons
+ */
+private fun getIntentionSituationIcon(situation: IntentionSituation): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (situation) {
+        IntentionSituation.WAKE_UP -> DailyWellIcons.Misc.Sunrise
+        IntentionSituation.AFTER_BREAKFAST -> DailyWellIcons.Health.Nutrition
+        IntentionSituation.LUNCH_BREAK -> DailyWellIcons.Habits.Nourish
+        IntentionSituation.AFTER_WORK -> DailyWellIcons.Misc.Time
+        IntentionSituation.BEFORE_DINNER -> DailyWellIcons.Health.Nutrition
+        IntentionSituation.BEFORE_BED -> DailyWellIcons.Habits.Sleep
+        IntentionSituation.FEELING_STRESSED -> DailyWellIcons.Mood.Struggling
+        IntentionSituation.FEELING_TIRED -> DailyWellIcons.Mood.Low
+        IntentionSituation.FEELING_BORED -> DailyWellIcons.Mood.Okay
+        IntentionSituation.FEELING_ANXIOUS -> DailyWellIcons.Mood.Struggling
+        IntentionSituation.FEELING_ENERGETIC -> DailyWellIcons.Gamification.XP
+        IntentionSituation.ARRIVE_HOME -> DailyWellIcons.Misc.Location
+        IntentionSituation.ARRIVE_WORK -> DailyWellIcons.Misc.Location
+        IntentionSituation.IN_KITCHEN -> DailyWellIcons.Health.Nutrition
+        IntentionSituation.AT_GYM -> DailyWellIcons.Health.Workout
+        IntentionSituation.PHONE_RINGS -> DailyWellIcons.Misc.Phone
+        IntentionSituation.MEETING_ENDS -> DailyWellIcons.Analytics.Calendar
+        IntentionSituation.COFFEE_READY -> DailyWellIcons.Misc.Time
+        IntentionSituation.CUSTOM -> DailyWellIcons.Actions.Edit
+    }
 }

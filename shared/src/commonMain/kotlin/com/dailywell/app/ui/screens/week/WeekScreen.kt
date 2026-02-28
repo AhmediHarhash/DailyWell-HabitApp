@@ -1,140 +1,181 @@
 package com.dailywell.app.ui.screens.week
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dailywell.app.core.theme.Success
-import com.dailywell.app.core.theme.Warning
+import com.dailywell.app.core.theme.*
 import com.dailywell.app.data.model.CompletionStatus
 import com.dailywell.app.data.model.DayStatus
 import com.dailywell.app.data.model.WeekData
+import com.dailywell.app.ui.components.DailyWellIcons
+import com.dailywell.app.ui.components.GlassScreenWrapper
+import com.dailywell.app.ui.components.PremiumSectionChip
+import com.dailywell.app.ui.components.PremiumTabHeader
+import com.dailywell.app.ui.components.StaggeredItem
+import com.dailywell.app.ui.components.ShimmerBox
+import com.dailywell.app.ui.components.pressScale
 import com.dailywell.app.ui.components.WeekCalendar
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
 
+/**
+ * WeekScreen - 2026 Modern Journey View
+ *
+ * Design: Clean, data-rich with warm glass cards,
+ * animated progress bars, and staggered daily breakdowns.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeekScreen(
     viewModel: WeekViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val dailyWellColors = LocalDailyWellColors.current
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Week View",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+    GlassScreenWrapper {
+        Column(modifier = Modifier.fillMaxSize()) {
+            PremiumTabHeader(
+                title = "Week",
+                subtitle = "Consistency and progression",
+                includeStatusBarPadding = true
             )
-        }
-    ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                dailyWellColors.timeGradientStart.copy(alpha = 0.3f),
+                                MaterialTheme.colorScheme.background,
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    ),
+                contentPadding = PaddingValues(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Week navigation
+                // Title header
                 item {
-                    WeekNavigationHeader(
-                        weekData = uiState.currentWeekData,
-                        isCurrentWeek = uiState.selectedWeekOffset == 0,
-                        onPreviousWeek = { viewModel.goToPreviousWeek() },
-                        onNextWeek = { viewModel.goToNextWeek() },
-                        onCurrentWeek = { viewModel.goToCurrentWeek() }
-                    )
+                    StaggeredItem(index = 0, delayPerItem = 50L) {
+                        PremiumSectionChip(
+                            modifier = Modifier.padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 4.dp),
+                            text = "Your Journey",
+                            icon = DailyWellIcons.Analytics.Streak
+                        )
+                    }
                 }
 
-                // Week calendar
-                item {
-                    uiState.currentWeekData?.let { weekData ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
+                if (uiState.isLoading) {
+                    // Shimmer loading skeleton
+                    item {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp)
-                            ) {
-                                WeekCalendar(weekData = weekData)
-                                Spacer(modifier = Modifier.height(16.dp))
+                            ShimmerBox(
+                                modifier = Modifier.fillMaxWidth().height(60.dp),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            ShimmerBox(
+                                modifier = Modifier.fillMaxWidth().height(120.dp),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            ShimmerBox(
+                                modifier = Modifier.fillMaxWidth().height(140.dp),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // Week navigation
+                    item {
+                        StaggeredItem(index = 1, delayPerItem = 50L) {
+                            WeekNavigationHeader(
+                                weekData = uiState.currentWeekData,
+                                isCurrentWeek = uiState.selectedWeekOffset == 0,
+                                onPreviousWeek = { viewModel.goToPreviousWeek() },
+                                onNextWeek = { viewModel.goToNextWeek() },
+                                onCurrentWeek = { viewModel.goToCurrentWeek() }
+                            )
+                        }
+                    }
 
-                                // Summary message
-                                Text(
-                                    text = uiState.weeklySummaryMessage,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = MaterialTheme.colorScheme.onSurface
+                    // Week calendar card
+                    item {
+                        StaggeredItem(index = 2, delayPerItem = 50L) {
+                            uiState.currentWeekData?.let { weekData ->
+                                WeekCalendarCard(
+                                    weekData = weekData,
+                                    summaryMessage = uiState.weeklySummaryMessage
                                 )
                             }
                         }
                     }
-                }
 
-                // Statistics card
-                item {
+                    // Stats card
+                    item {
+                        StaggeredItem(index = 3, delayPerItem = 50L) {
+                            uiState.currentWeekData?.let { weekData ->
+                                WeekStatsCard(weekData = weekData)
+                            }
+                        }
+                    }
+
+                    // Daily breakdown header
+                    item {
+                        StaggeredItem(index = 4, delayPerItem = 50L) {
+                            PremiumSectionChip(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                                text = "Daily Breakdown",
+                                icon = DailyWellIcons.Analytics.Calendar
+                            )
+                        }
+                    }
+
+                    // Daily breakdown items with staggered animation
                     uiState.currentWeekData?.let { weekData ->
-                        WeekStatsCard(weekData = weekData)
+                        val pastDays = weekData.days.filter { !it.isFuture }
+                        itemsIndexed(pastDays) { index, dayStatus ->
+                            StaggeredItem(index = index, delayPerItem = 60L, baseDelay = 200L) {
+                                DayBreakdownCard(
+                                    dayStatus = dayStatus,
+                                    modifier = Modifier.padding(horizontal = 20.dp)
+                                )
+                            }
+                        }
                     }
-                }
 
-                // Daily breakdown
-                item {
-                    Text(
-                        text = "DAILY BREAKDOWN",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                uiState.currentWeekData?.let { weekData ->
-                    items(weekData.days.filter { !it.isFuture }) { dayStatus ->
-                        DayBreakdownCard(dayStatus = dayStatus)
+                    // Comparison card
+                    item {
+                        StaggeredItem(index = 5, delayPerItem = 50L) {
+                            ComparisonCard(
+                                currentWeek = uiState.currentWeekData,
+                                previousWeek = uiState.previousWeekData
+                            )
+                        }
                     }
-                }
-
-                // Comparison with previous week
-                item {
-                    ComparisonCard(
-                        currentWeek = uiState.currentWeekData,
-                        previousWeek = uiState.previousWeekData
-                    )
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -149,112 +190,246 @@ private fun WeekNavigationHeader(
     onNextWeek: () -> Unit,
     onCurrentWeek: () -> Unit
 ) {
+    val dailyWellColors = LocalDailyWellColors.current
+
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onPreviousWeek) {
-            Text(text = "◀", fontSize = 20.sp)
+        // Previous button
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(dailyWellColors.surfaceSubtle)
+                .pressScale()
+                .then(Modifier),
+            contentAlignment = Alignment.Center
+        ) {
+            IconButton(onClick = onPreviousWeek, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = DailyWellIcons.Nav.Back,
+                    contentDescription = "Previous week",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = formatWeekRange(weekData),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground
             )
             if (!isCurrentWeek) {
                 TextButton(onClick = onCurrentWeek) {
                     Text(
                         text = "Go to current week",
-                        style = MaterialTheme.typography.labelSmall
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
 
-        IconButton(
-            onClick = onNextWeek,
-            enabled = !isCurrentWeek
+        // Next button
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isCurrentWeek) dailyWellColors.surfaceMuted
+                    else dailyWellColors.surfaceSubtle
+                )
+                .pressScale(enabled = !isCurrentWeek),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "▶",
-                fontSize = 20.sp,
-                color = if (isCurrentWeek) {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                }
+            IconButton(
+                onClick = onNextWeek,
+                enabled = !isCurrentWeek,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = DailyWellIcons.Nav.ArrowForward,
+                    contentDescription = "Next week",
+                    modifier = Modifier.size(18.dp),
+                    tint = if (isCurrentWeek) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekCalendarCard(
+    weekData: WeekData,
+    summaryMessage: String
+) {
+    val dailyWellColors = LocalDailyWellColors.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(22.dp),
+                spotColor = dailyWellColors.shadowLight
             )
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        dailyWellColors.glassBackground,
+                        MaterialTheme.colorScheme.surface
+                    )
+                )
+            )
+            .border(
+                width = 0.5.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        dailyWellColors.glassHighlight,
+                        dailyWellColors.glassBorder
+                    )
+                ),
+                shape = RoundedCornerShape(22.dp)
+            )
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            WeekCalendar(weekData = weekData)
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Summary with subtle background
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(dailyWellColors.surfaceSubtle.copy(alpha = 0.5f))
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = summaryMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun WeekStatsCard(weekData: WeekData) {
+    val dailyWellColors = LocalDailyWellColors.current
+
     val completedDays = weekData.days.count { it.status == CompletionStatus.COMPLETE }
     val partialDays = weekData.days.count { it.status == CompletionStatus.PARTIAL }
     val missedDays = weekData.days.count {
         it.status == CompletionStatus.NONE && !it.isFuture
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "WEEK STATS",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .shadow(
+                elevation = 3.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = dailyWellColors.shadowLight
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(
+                width = 0.5.dp,
+                color = dailyWellColors.glassBorder,
+                shape = RoundedCornerShape(20.dp)
+            )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Week Stats",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem(
-                    emoji = "✓",
+                StatPill(
                     value = completedDays.toString(),
                     label = "Complete",
-                    color = Success
+                    color = Success,
+                    icon = DailyWellIcons.Status.Success
                 )
-                StatItem(
-                    emoji = "◐",
+                StatPill(
                     value = partialDays.toString(),
                     label = "Partial",
-                    color = Warning
+                    color = Warning,
+                    icon = DailyWellIcons.Misc.Time
                 )
-                StatItem(
-                    emoji = "✗",
+                StatPill(
                     value = missedDays.toString(),
                     label = "Missed",
-                    color = MaterialTheme.colorScheme.error
+                    color = Error,
+                    icon = DailyWellIcons.Status.Error
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Completion rate bar
+            // Animated completion rate bar
             val rate = (weekData.completionRate * 100).toInt()
-            LinearProgressIndicator(
-                progress = { weekData.completionRate },
+            val animatedProgress by animateFloatAsState(
+                targetValue = weekData.completionRate,
+                animationSpec = tween(1000, easing = EaseOutCubic),
+                label = "weekProgress"
+            )
+
+            val barColor = when {
+                rate >= 80 -> Success
+                rate >= 50 -> Warning
+                else -> Error
+            }
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp),
-                color = when {
-                    rate >= 80 -> Success
-                    rate >= 50 -> Warning
-                    else -> MaterialTheme.colorScheme.error
-                },
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(dailyWellColors.surfaceMuted)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(animatedProgress.coerceIn(0f, 1f))
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    barColor,
+                                    barColor.copy(alpha = 0.7f)
+                                )
+                            )
+                        )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
             Text(
                 text = "$rate% completion rate",
                 style = MaterialTheme.typography.bodySmall,
@@ -265,23 +440,31 @@ private fun WeekStatsCard(weekData: WeekData) {
 }
 
 @Composable
-private fun StatItem(
-    emoji: String,
+private fun StatPill(
     value: String,
     label: String,
-    color: androidx.compose.ui.graphics.Color
+    color: Color,
+    icon: ImageVector
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = emoji, fontSize = 16.sp, color = color)
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
+        // Colored circle with value
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.1f))
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
@@ -291,18 +474,40 @@ private fun StatItem(
 }
 
 @Composable
-private fun DayBreakdownCard(dayStatus: DayStatus) {
+private fun DayBreakdownCard(
+    dayStatus: DayStatus,
+    modifier: Modifier = Modifier
+) {
+    val dailyWellColors = LocalDailyWellColors.current
     val dayNames = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when (dayStatus.status) {
-                CompletionStatus.COMPLETE -> Success.copy(alpha = 0.1f)
-                CompletionStatus.PARTIAL -> Warning.copy(alpha = 0.1f)
-                else -> MaterialTheme.colorScheme.surface
-            }
-        )
+    val statusColor = when (dayStatus.status) {
+        CompletionStatus.COMPLETE -> Success
+        CompletionStatus.PARTIAL -> Warning
+        CompletionStatus.NONE -> Error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                if (dayStatus.isToday) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                } else {
+                    MaterialTheme.colorScheme.surface
+                }
+            )
+            .border(
+                width = if (dayStatus.isToday) 1.dp else 0.5.dp,
+                color = if (dayStatus.isToday) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                } else {
+                    dailyWellColors.glassBorder.copy(alpha = 0.3f)
+                },
+                shape = RoundedCornerShape(16.dp)
+            )
     ) {
         Row(
             modifier = Modifier
@@ -311,47 +516,66 @@ private fun DayBreakdownCard(dayStatus: DayStatus) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = dayNames.getOrNull(dayStatus.dayOfWeek) ?: "",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (dayStatus.isToday) FontWeight.Bold else FontWeight.Normal
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Status indicator dot
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(statusColor)
                 )
-                if (dayStatus.isToday) {
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
                     Text(
-                        text = "Today",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        text = dayNames.getOrNull(dayStatus.dayOfWeek) ?: "",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = if (dayStatus.isToday) FontWeight.Bold else FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+                    if (dayStatus.isToday) {
+                        Text(
+                            text = "Today",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Completion count with mini progress
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
                     text = "${dayStatus.completedCount}/${dayStatus.totalCount}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = when (dayStatus.status) {
-                        CompletionStatus.COMPLETE -> Success
-                        CompletionStatus.PARTIAL -> Warning
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = statusColor
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = when (dayStatus.status) {
-                        CompletionStatus.COMPLETE -> "✓"
-                        CompletionStatus.PARTIAL -> "◐"
-                        CompletionStatus.NONE -> "✗"
-                        else -> "–"
-                    },
-                    fontSize = 20.sp,
-                    color = when (dayStatus.status) {
-                        CompletionStatus.COMPLETE -> Success
-                        CompletionStatus.PARTIAL -> Warning
-                        CompletionStatus.NONE -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
+
+                // Mini status badge
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(statusColor.copy(alpha = 0.12f))
+                ) {
+                    Icon(
+                        imageVector = when (dayStatus.status) {
+                            CompletionStatus.COMPLETE -> DailyWellIcons.Actions.Check
+                            CompletionStatus.PARTIAL -> DailyWellIcons.Misc.Time
+                            CompletionStatus.NONE -> DailyWellIcons.Nav.Close
+                            else -> DailyWellIcons.Actions.Remove
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = statusColor
+                    )
+                }
             }
         }
     }
@@ -364,53 +588,80 @@ private fun ComparisonCard(
 ) {
     if (currentWeek == null || previousWeek == null) return
 
+    val dailyWellColors = LocalDailyWellColors.current
     val currentRate = (currentWeek.completionRate * 100).toInt()
     val previousRate = (previousWeek.completionRate * 100).toInt()
     val difference = currentRate - previousRate
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+    val trendColor = when {
+        difference > 0 -> Success
+        difference < 0 -> Error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .shadow(
+                elevation = 3.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = dailyWellColors.shadowLight
+            )
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.horizontalGradient(
+                    colors = listOf(
+                        trendColor.copy(alpha = 0.06f),
+                        MaterialTheme.colorScheme.surface
+                    )
+                )
+            )
+            .border(
+                width = 0.5.dp,
+                color = dailyWellColors.glassBorder,
+                shape = RoundedCornerShape(20.dp)
+            )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "VS LAST WEEK",
-                style = MaterialTheme.typography.labelMedium,
+                text = "vs Last Week",
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = when {
-                        difference > 0 -> "📈"
-                        difference < 0 -> "📉"
-                        else -> "➡️"
+                Icon(
+                    imageVector = when {
+                        difference > 0 -> DailyWellIcons.Analytics.TrendUp
+                        difference < 0 -> DailyWellIcons.Analytics.TrendDown
+                        else -> DailyWellIcons.Analytics.TrendFlat
                     },
-                    fontSize = 24.sp
+                    contentDescription = "Trend",
+                    modifier = Modifier.size(28.dp),
+                    tint = trendColor
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = when {
                         difference > 0 -> "+$difference%"
                         difference < 0 -> "$difference%"
                         else -> "Same"
                     },
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = when {
-                        difference > 0 -> Success
-                        difference < 0 -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    color = trendColor
                 )
             }
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = when {

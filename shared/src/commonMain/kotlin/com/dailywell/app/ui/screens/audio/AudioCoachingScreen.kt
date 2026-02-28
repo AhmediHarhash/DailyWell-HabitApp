@@ -1,4 +1,4 @@
-package com.dailywell.app.ui.screens.audio
+﻿package com.dailywell.app.ui.screens.audio
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -20,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +31,10 @@ import com.dailywell.app.data.model.*
 import com.dailywell.app.core.theme.Primary
 import com.dailywell.app.core.theme.PrimaryLight
 import com.dailywell.app.core.theme.Secondary
+import com.dailywell.app.ui.components.DailyWellIcons
+import com.dailywell.app.ui.components.GlassScreenWrapper
+import com.dailywell.app.ui.components.PremiumSectionChip
+import com.dailywell.app.ui.components.PremiumTopBar
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,29 +46,25 @@ fun AudioCoachingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Audio Coaching") },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Text(text = "←", fontSize = 24.sp)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
+    GlassScreenWrapper {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                containerColor = Color.Transparent,
+                topBar = {
+                    PremiumTopBar(
+                        title = "Audio Coaching",
+                        subtitle = "Guided sessions for focus and recovery",
+                        onNavigationClick = onBack
                     )
-                )
-            }
-        ) { paddingValues ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+                }
+            ) { paddingValues ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 // Header
                 item {
                     AudioCoachingHeader(
@@ -91,79 +93,78 @@ fun AudioCoachingScreen(
                 }
 
                 // Playlists Section
-                if (uiState.selectedCategory == null) {
-                    item {
-                        Text(
-                            text = "Playlists",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    if (uiState.selectedCategory == null) {
+                        item {
+                            PremiumSectionChip(
+                                text = "Playlists",
+                                icon = DailyWellIcons.Coaching.Audio
+                            )
+                        }
 
-                    item {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(uiState.playlists) { playlist ->
-                                PlaylistCard(
-                                    playlist = playlist,
-                                    isLocked = !isPremium && playlist.isPremium
-                                )
+                        item {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(uiState.playlists) { playlist ->
+                                    PlaylistCard(
+                                        playlist = playlist,
+                                        isLocked = !isPremium && playlist.isPremium
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                // Tracks Section
-                item {
-                    Text(
-                        text = if (uiState.selectedCategory != null)
-                            uiState.selectedCategory!!.label
-                        else
-                            "All Tracks",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                items(uiState.tracks) { track ->
-                    AudioTrackCard(
-                        track = track,
-                        isCompleted = track.id in uiState.completedTrackIds,
-                        isFavorite = track.id in uiState.favoriteTrackIds,
-                        isLocked = !isPremium && track.isPremium,
-                        isPlaying = uiState.currentPlayingTrack?.id == track.id && uiState.isPlaying,
-                        onPlay = { viewModel.playTrack(track) },
-                        onFavoriteToggle = { viewModel.toggleFavorite(track.id) }
-                    )
-                }
-
-                // Premium Upsell
-                if (!isPremium) {
+                    // Tracks Section
                     item {
-                        PremiumUpsellCard()
+                        PremiumSectionChip(
+                            text = if (uiState.selectedCategory != null)
+                                uiState.selectedCategory!!.label
+                            else
+                                "All tracks",
+                            icon = DailyWellIcons.Analytics.Pattern
+                        )
+                    }
+
+                    items(uiState.tracks) { track ->
+                        AudioTrackCard(
+                            track = track,
+                            isCompleted = track.id in uiState.completedTrackIds,
+                            isFavorite = track.id in uiState.favoriteTrackIds,
+                            isLocked = !isPremium && track.isPremium,
+                            isPlaying = uiState.currentPlayingTrack?.id == track.id && uiState.isPlaying,
+                            onPlay = { viewModel.playTrack(track) },
+                            onFavoriteToggle = { viewModel.toggleFavorite(track.id) }
+                        )
+                    }
+
+                    // Premium Upsell
+                    if (!isPremium) {
+                        item {
+                            PremiumUpsellCard()
+                        }
                     }
                 }
             }
-        }
 
-        // Mini Player
-        AnimatedVisibility(
-            visible = uiState.currentPlayingTrack != null,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            uiState.currentPlayingTrack?.let { track ->
-                MiniPlayer(
-                    track = track,
-                    isPlaying = uiState.isPlaying,
-                    progress = uiState.playbackProgress,
-                    onPlayPause = {
-                        if (uiState.isPlaying) viewModel.pauseTrack() else viewModel.resumeTrack()
-                    },
-                    onClose = { viewModel.stopTrack() }
-                )
+            // Mini Player
+            AnimatedVisibility(
+                visible = uiState.currentPlayingTrack != null,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                uiState.currentPlayingTrack?.let { track ->
+                    MiniPlayer(
+                        track = track,
+                        isPlaying = uiState.isPlaying,
+                        progress = uiState.playbackProgress,
+                        onPlayPause = {
+                            if (uiState.isPlaying) viewModel.pauseTrack() else viewModel.resumeTrack()
+                        },
+                        onClose = { viewModel.stopTrack() }
+                    )
+                }
             }
         }
     }
@@ -185,9 +186,11 @@ private fun AudioCoachingHeader(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "🎧",
-                    fontSize = 28.sp
+                Icon(
+                    imageVector = DailyWellIcons.Coaching.Audio,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = Primary
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -261,9 +264,11 @@ private fun RecommendedTrackCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "✨",
-                    fontSize = 16.sp
+                Icon(
+                    imageVector = DailyWellIcons.Misc.Sparkle,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = Secondary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -286,9 +291,11 @@ private fun RecommendedTrackCard(
                         .background(Secondary.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = track.category.emoji,
-                        fontSize = 32.sp
+                    Icon(
+                        imageVector = getAudioCategoryIcon(track.category),
+                        contentDescription = track.category.label,
+                        modifier = Modifier.size(32.dp),
+                        tint = Secondary
                     )
                 }
 
@@ -331,10 +338,11 @@ private fun RecommendedTrackCard(
                             .background(Secondary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "▶",
-                            fontSize = 20.sp,
-                            color = Color.White
+                        Icon(
+                            imageVector = DailyWellIcons.Coaching.Play,
+                            contentDescription = "Play",
+                            modifier = Modifier.size(24.dp),
+                            tint = Color.White
                         )
                     }
                 }
@@ -364,7 +372,14 @@ private fun CategoryFilters(
                 onClick = {
                     onCategorySelected(if (selectedCategory == category) null else category)
                 },
-                label = { Text("${category.emoji} ${category.label}") }
+                leadingIcon = {
+                    Icon(
+                        imageVector = getAudioCategoryIcon(category),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                label = { Text(category.label) }
             )
         }
     }
@@ -392,9 +407,11 @@ private fun PlaylistCard(
                     .background(Secondary.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = playlist.emoji,
-                    fontSize = 40.sp
+                Icon(
+                    imageVector = getPlaylistIcon(playlist.id),
+                    contentDescription = playlist.name,
+                    modifier = Modifier.size(40.dp),
+                    tint = Secondary
                 )
                 if (isLocked) {
                     Box(
@@ -423,7 +440,7 @@ private fun PlaylistCard(
             )
 
             Text(
-                text = "${playlist.trackIds.size} tracks • ${AudioLibrary.formatDuration(playlist.totalDuration)}",
+                text = "${playlist.trackIds.size} tracks - ${AudioLibrary.formatDuration(playlist.totalDuration)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
@@ -472,14 +489,18 @@ private fun AudioTrackCard(
             ) {
                 if (isPlaying) {
                     // Playing animation placeholder
-                    Text(
-                        text = "🎵",
-                        fontSize = 20.sp
+                    Icon(
+                        imageVector = DailyWellIcons.Coaching.Audio,
+                        contentDescription = "Playing",
+                        modifier = Modifier.size(22.dp),
+                        tint = Secondary
                     )
                 } else {
-                    Text(
-                        text = track.category.emoji,
-                        fontSize = 24.sp
+                    Icon(
+                        imageVector = getAudioCategoryIcon(track.category),
+                        contentDescription = track.category.label,
+                        modifier = Modifier.size(24.dp),
+                        tint = Primary
                     )
                 }
             }
@@ -503,10 +524,11 @@ private fun AudioTrackCard(
                     )
                     if (isCompleted) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "✓",
-                            fontSize = 14.sp,
-                            color = Primary
+                        Icon(
+                            imageVector = DailyWellIcons.Actions.CheckCircle,
+                            contentDescription = "Completed",
+                            modifier = Modifier.size(16.dp),
+                            tint = Primary
                         )
                     }
                     if (track.isNew) {
@@ -543,7 +565,7 @@ private fun AudioTrackCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "•",
+                        text = "-",
                         color = Color.Gray
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -615,9 +637,11 @@ private fun MiniPlayer(
                         .background(Secondary.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = track.category.emoji,
-                        fontSize = 20.sp
+                    Icon(
+                        imageVector = getAudioCategoryIcon(track.category),
+                        contentDescription = track.category.label,
+                        modifier = Modifier.size(22.dp),
+                        tint = Secondary
                     )
                 }
 
@@ -649,10 +673,11 @@ private fun MiniPlayer(
                             .background(Secondary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = if (isPlaying) "⏸" else "▶",
-                            fontSize = 16.sp,
-                            color = Color.White
+                        Icon(
+                            imageVector = if (isPlaying) DailyWellIcons.Coaching.Pause else DailyWellIcons.Coaching.Play,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.White
                         )
                     }
                 }
@@ -683,9 +708,11 @@ private fun PremiumUpsellCard() {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "🎧",
-                fontSize = 40.sp
+            Icon(
+                imageVector = DailyWellIcons.Coaching.Audio,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = Secondary
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -718,3 +745,31 @@ private fun PremiumUpsellCard() {
         }
     }
 }
+
+/**
+ * Maps AudioCategory to the appropriate Material Icon
+ */
+private fun getAudioCategoryIcon(category: AudioCategory): ImageVector = when (category) {
+    AudioCategory.MORNING_MINDSET -> DailyWellIcons.Misc.Sunrise
+    AudioCategory.EVENING_WINDDOWN -> DailyWellIcons.Misc.Night
+    AudioCategory.HABIT_SCIENCE -> DailyWellIcons.Coaching.Lesson
+    AudioCategory.MOTIVATION -> DailyWellIcons.Health.Workout
+    AudioCategory.BREATHING -> DailyWellIcons.Habits.Calm
+    AudioCategory.FOCUS -> DailyWellIcons.Habits.Intentions
+    AudioCategory.STRESS_RELIEF -> DailyWellIcons.Habits.Calm
+    AudioCategory.SLEEP_STORIES -> DailyWellIcons.Habits.Sleep
+    AudioCategory.CELEBRATION -> DailyWellIcons.Social.Cheer
+    AudioCategory.COMEBACK -> DailyWellIcons.Habits.Recovery
+}
+
+/**
+ * Maps playlist ID to the appropriate Material Icon
+ */
+private fun getPlaylistIcon(playlistId: String): ImageVector = when (playlistId) {
+    "morning_essentials" -> DailyWellIcons.Misc.Sunrise
+    "habit_academy" -> DailyWellIcons.Coaching.Lesson
+    "motivation_boost" -> DailyWellIcons.Gamification.XP
+    "evening_routine" -> DailyWellIcons.Misc.Night
+    else -> DailyWellIcons.Coaching.Audio
+}
+

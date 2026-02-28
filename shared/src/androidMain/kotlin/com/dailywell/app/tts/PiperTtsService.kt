@@ -1,30 +1,34 @@
 package com.dailywell.app.tts
 
 import android.content.Context
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.*
 
 /**
  * TTS Service for Natural Voice Guidance
  *
- * Uses Android's built-in TextToSpeech engine which provides:
- * - High-quality neural voices on modern Android devices
- * - Offline capability (no API costs)
- * - Multiple language support
- * - Customizable pitch and speed
+ * Uses REAL Piper TTS with sherpa-onnx for high-quality,
+ * natural-sounding text-to-speech without internet connection.
  *
- * Note: Originally planned for Piper TTS (ONNX-based neural TTS), but
- * Android's built-in TTS has significantly improved and now offers
- * comparable quality with much simpler integration.
+ * Model: en_US-lessac-medium (~60MB VITS neural model)
+ * Quality: Near-human natural speech
+ * Latency: ~200ms for short phrases
+ *
+ * Ported from PosturePal with 2026 audio optimizations:
+ * - noiseScale = 0.0f for pure sound
+ * - 8x audio buffer for ultra-clean playback
+ * - Audio warmup to eliminate first-play static
  */
 class PiperTtsService(private val context: Context) {
 
-    private var tts: TextToSpeech? = null
+    companion object {
+        private const val TAG = "PiperTtsService"
+    }
+
+    private val piperTts = PiperTts(context)
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val _isSpeaking = MutableStateFlow(false)
@@ -33,10 +37,11 @@ class PiperTtsService(private val context: Context) {
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
-    private var pendingSpeak: (() -> Unit)? = null
+    private var currentPersona: VoicePersona = VoicePersona.SUPPORTIVE
 
     /**
      * Voice personas for different coaching styles
+     * Speed adjustments applied to Piper's speed parameter
      */
     enum class VoicePersona(val pitch: Float, val speed: Float, val description: String) {
         SUPPORTIVE(1.0f, 0.95f, "Warm and encouraging, celebrates every win"),
@@ -48,48 +53,26 @@ class PiperTtsService(private val context: Context) {
 
     /**
      * Initialize TTS engine
+     * Loads the Piper VITS model (~60MB on first run)
      */
     fun initialize(onReady: (() -> Unit)? = null) {
-        if (tts != null) {
+        if (_isInitialized.value) {
             onReady?.invoke()
             return
         }
 
-        tts = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.let { engine ->
-                    // Set language to US English
-                    val result = engine.setLanguage(Locale.US)
-                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                        // Fallback to default
-                        engine.setLanguage(Locale.getDefault())
-                    }
-
-                    // Set up utterance listener
-                    engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                        override fun onStart(utteranceId: String?) {
-                            _isSpeaking.value = true
-                        }
-
-                        override fun onDone(utteranceId: String?) {
-                            _isSpeaking.value = false
-                        }
-
-                        @Deprecated("Deprecated in Java")
-                        override fun onError(utteranceId: String?) {
-                            _isSpeaking.value = false
-                        }
-
-                        override fun onError(utteranceId: String?, errorCode: Int) {
-                            _isSpeaking.value = false
-                        }
-                    })
-
+        scope.launch {
+            try {
+                val success = piperTts.initialize()
+                if (success) {
                     _isInitialized.value = true
+                    Log.d(TAG, "Piper TTS initialized successfully")
                     onReady?.invoke()
-                    pendingSpeak?.invoke()
-                    pendingSpeak = null
+                } else {
+                    Log.e(TAG, "Failed to initialize Piper TTS")
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error initializing Piper TTS", e)
             }
         }
     }
@@ -102,49 +85,37 @@ class PiperTtsService(private val context: Context) {
         persona: VoicePersona = VoicePersona.SUPPORTIVE,
         onComplete: (() -> Unit)? = null
     ) {
-        val doSpeak = {
-            tts?.let { engine ->
-                // Apply persona settings
-                engine.setPitch(persona.pitch)
-                engine.setSpeechRate(persona.speed)
-
-                // Process text for better speech
-                val processedText = preprocessText(text)
-
-                // Speak with utterance ID for tracking
-                val utteranceId = "tts_${System.currentTimeMillis()}"
-
-                if (onComplete != null) {
-                    engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                        override fun onStart(utteranceId: String?) {
-                            _isSpeaking.value = true
-                        }
-
-                        override fun onDone(utteranceId: String?) {
-                            _isSpeaking.value = false
-                            onComplete()
-                        }
-
-                        @Deprecated("Deprecated in Java")
-                        override fun onError(utteranceId: String?) {
-                            _isSpeaking.value = false
-                        }
-
-                        override fun onError(utteranceId: String?, errorCode: Int) {
-                            _isSpeaking.value = false
-                        }
-                    })
+        scope.launch {
+            // Ensure initialized
+            if (!_isInitialized.value) {
+                val success = piperTts.initialize()
+                if (success) {
+                    _isInitialized.value = true
+                } else {
+                    Log.w(TAG, "TTS not initialized, skipping speech")
+                    return@launch
                 }
-
-                engine.speak(processedText, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
             }
-        }
 
-        if (_isInitialized.value) {
-            doSpeak()
-        } else {
-            pendingSpeak = { doSpeak() }
-            initialize()
+            // Apply persona speed (Piper doesn't have pitch control)
+            if (currentPersona != persona) {
+                currentPersona = persona
+                piperTts.setSpeed(persona.speed)
+            }
+
+            // Process text for better speech
+            val processedText = preprocessText(text)
+
+            _isSpeaking.value = true
+
+            try {
+                piperTts.speak(processedText, flush = true)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error speaking: $text", e)
+            } finally {
+                _isSpeaking.value = false
+                onComplete?.invoke()
+            }
         }
     }
 
@@ -170,7 +141,7 @@ class PiperTtsService(private val context: Context) {
      * Stop current speech
      */
     fun stop() {
-        tts?.stop()
+        piperTts.stop()
         _isSpeaking.value = false
     }
 
@@ -324,8 +295,7 @@ class PiperTtsService(private val context: Context) {
      */
     fun release() {
         stop()
-        tts?.shutdown()
-        tts = null
+        piperTts.release()
         _isInitialized.value = false
         scope.cancel()
     }

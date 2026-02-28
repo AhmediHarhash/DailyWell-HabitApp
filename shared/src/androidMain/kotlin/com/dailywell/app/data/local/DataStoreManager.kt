@@ -44,6 +44,12 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
+    suspend fun remove(key: String) {
+        context.dataStore.edit { preferences ->
+            preferences.remove(stringKey(key))
+        }
+    }
+
     suspend fun <T> putObject(key: String, value: T, serializer: (T) -> String) {
         putString(key, serializer(value))
     }

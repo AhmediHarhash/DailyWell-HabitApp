@@ -2,6 +2,8 @@ package com.dailywell.app.ui.screens.paywall
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailywell.app.data.model.AIPlanType
+import com.dailywell.app.data.repository.AICoachingRepository
 import com.dailywell.app.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -10,29 +12,27 @@ data class PaywallUiState(
     val isLoading: Boolean = false,
     val isPurchasing: Boolean = false,
     val selectedProductId: String = PRODUCT_ANNUAL, // Default to annual (best conversion)
-    val monthlyPrice: String = "$4.99",
-    val annualPrice: String = "$29.99",
-    val lifetimePrice: String = "$79.99",
+    val monthlyPrice: String = "$9.99",
+    val annualPrice: String = "$79.99",
     val errorMessage: String? = null,
     val purchaseSuccess: Boolean = false,
     val isTrialActive: Boolean = false,
     val trialDaysRemaining: Int = 0
 ) {
-    // Monthly equivalent for annual plan (for display)
-    val annualMonthlyEquivalent: String get() = "$2.50"
+    // Monthly equivalents for display
+    val annualMonthlyEquivalent: String get() = "$6.67"   // $79.99 / 12
 
-    // Savings percentages
-    val annualSavingsPercent: Int get() = 50 // $4.99 * 12 = $59.88, save ~$30
-    val lifetimeSavingsPercent: Int get() = 87 // Based on 2-year comparison
+    // Savings percentages (vs monthly)
+    val annualSavingsPercent: Int get() = 33  // $9.99 * 12 = $119.88, save ~$40 (33%)
 }
 
 // Product IDs for Google Play Billing
 const val PRODUCT_MONTHLY = "dailywell_premium_monthly"
 const val PRODUCT_ANNUAL = "dailywell_premium_annual"
-const val PRODUCT_LIFETIME = "dailywell_premium_lifetime"
 
 class PaywallViewModel(
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val aiCoachingRepository: AICoachingRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PaywallUiState())
@@ -51,6 +51,7 @@ class PaywallViewModel(
     fun onPurchaseSuccess() {
         viewModelScope.launch {
             settingsRepository.setPremium(true)
+            syncPlanTypeWithSelectedProduct()
             _uiState.update { it.copy(isPurchasing = false, purchaseSuccess = true) }
         }
     }
@@ -82,12 +83,14 @@ class PaywallViewModel(
         _uiState.update { it.copy(isLoading = false, errorMessage = "No purchases to restore") }
     }
 
-    fun updatePrices(monthlyPrice: String, annualPrice: String, lifetimePrice: String) {
+    fun updatePrices(
+        monthlyPrice: String,
+        annualPrice: String
+    ) {
         _uiState.update {
             it.copy(
                 monthlyPrice = monthlyPrice,
-                annualPrice = annualPrice,
-                lifetimePrice = lifetimePrice
+                annualPrice = annualPrice
             )
         }
     }
@@ -103,5 +106,15 @@ class PaywallViewModel(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    private suspend fun syncPlanTypeWithSelectedProduct() {
+        val selected = _uiState.value.selectedProductId
+        val planType = when (selected) {
+            PRODUCT_ANNUAL -> AIPlanType.ANNUAL
+            PRODUCT_MONTHLY -> AIPlanType.MONTHLY
+            else -> AIPlanType.MONTHLY
+        }
+        aiCoachingRepository?.updatePlanType(planType)
     }
 }

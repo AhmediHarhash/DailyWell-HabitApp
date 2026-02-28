@@ -1,7 +1,9 @@
 package com.dailywell.app
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import com.dailywell.app.core.theme.DailyWellTheme
+import com.dailywell.app.data.model.ThemeMode
 import com.dailywell.app.data.model.UserSettings
 import com.dailywell.app.data.repository.SettingsRepository
 import com.dailywell.app.ui.navigation.MainNavigation
@@ -11,10 +13,14 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 @Composable
-fun App() {
+fun App(
+    onPurchaseProduct: ((String) -> Unit)? = null,
+    onRestorePurchases: (() -> Unit)? = null
+) {
     val settingsRepository: SettingsRepository = koinInject()
     var settings by remember { mutableStateOf(UserSettings()) }
     var showPaywall by remember { mutableStateOf(false) }
+    var billingUnavailableMessage by remember { mutableStateOf<String?>(null) }
 
     // Get current date for trial check
     val currentDate = remember {
@@ -42,14 +48,22 @@ fun App() {
      * - EVERYTHING unlocked. No restrictions.
      */
     val hasFullAccess = settings.hasPremiumAccess(currentDate)
-    val isOnTrial = settings.isTrialActive(currentDate)
-    val trialDaysLeft = settings.trialDaysRemaining(currentDate)
-
-    DailyWellTheme {
+    val systemDarkTheme = isSystemInDarkTheme()
+    val useDarkTheme = when (settings.themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> systemDarkTheme
+    }
+    DailyWellTheme(darkTheme = useDarkTheme) {
         if (showPaywall) {
             PaywallScreen(
                 onDismiss = { showPaywall = false },
-                onPurchaseSuccess = { showPaywall = false }
+                onPurchaseSuccess = { showPaywall = false },
+                onPurchaseProduct = onPurchaseProduct,
+                onRestorePurchases = onRestorePurchases,
+                onBillingUnavailable = { message ->
+                    billingUnavailableMessage = message
+                }
             )
         } else {
             MainNavigation(
@@ -62,23 +76,50 @@ fun App() {
                 onNavigateToPaywall = { showPaywall = true }
             )
         }
+
+        if (billingUnavailableMessage != null) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { billingUnavailableMessage = null },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = { billingUnavailableMessage = null }
+                    ) {
+                        androidx.compose.material3.Text("OK")
+                    }
+                },
+                title = { androidx.compose.material3.Text("Purchases Unavailable") },
+                text = { androidx.compose.material3.Text(billingUnavailableMessage ?: "") }
+            )
+        }
     }
 }
 
 @Composable
 private fun PaywallScreen(
     onDismiss: () -> Unit,
-    onPurchaseSuccess: () -> Unit
+    onPurchaseSuccess: () -> Unit,
+    onPurchaseProduct: ((String) -> Unit)?,
+    onRestorePurchases: (() -> Unit)?,
+    onBillingUnavailable: (String) -> Unit
 ) {
     com.dailywell.app.ui.screens.paywall.PaywallScreen(
         onDismiss = onDismiss,
         onPurchaseSuccess = onPurchaseSuccess,
         onPurchaseProduct = { productId ->
-            // Platform-specific purchase handling will be done by the Android app
-            // This is a placeholder - the actual billing flow is handled externally
+            val purchaseHandler = onPurchaseProduct
+            if (purchaseHandler != null) {
+                purchaseHandler(productId)
+            } else {
+                onBillingUnavailable("Purchases are not available in this build.")
+            }
         },
         onRestorePurchases = {
-            // Platform-specific restore handling will be done by the Android app
+            val restoreHandler = onRestorePurchases
+            if (restoreHandler != null) {
+                restoreHandler()
+            } else {
+                onBillingUnavailable("Restore is not available in this build.")
+            }
         }
     )
 }

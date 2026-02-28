@@ -3,6 +3,7 @@ package com.dailywell.app.ui.components
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -13,11 +14,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dailywell.app.core.theme.LocalDailyWellColors
 import com.dailywell.app.core.theme.Primary
 import com.dailywell.app.core.theme.Success
 import com.dailywell.app.data.model.MoodLevel
@@ -47,12 +52,13 @@ fun MoodCheckCard(
         enter = fadeIn() + expandVertically(),
         exit = fadeOut() + shrinkVertically()
     ) {
-        Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            ),
-            shape = RoundedCornerShape(16.dp)
+        // B1: Glass card wrapper with entrance animation
+        GlassCard(
+            modifier = modifier
+                .fillMaxWidth()
+                .fadeInOnAppear(durationMs = 400, delay = 50),
+            elevation = ElevationLevel.Medium,
+            cornerRadius = 20.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -88,7 +94,7 @@ fun MoodCheckCard(
                         modifier = Modifier.padding(top = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                         Text(
                             text = currentMood?.let { MoodPrompts.getFollowUp(it) } ?: "",
@@ -99,17 +105,32 @@ fun MoodCheckCard(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Encouragement based on mood
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = when (currentMood) {
-                                    MoodLevel.GREAT, MoodLevel.GOOD -> Success.copy(alpha = 0.2f)
-                                    MoodLevel.OKAY -> Primary.copy(alpha = 0.2f)
-                                    MoodLevel.LOW, MoodLevel.STRUGGLING -> Color(0xFFFFE0B2)
-                                    null -> Color.Transparent
-                                }
-                            ),
-                            shape = RoundedCornerShape(12.dp)
+                        // B3: Encouragement with glass-tinted background using mood color
+                        val moodTintColor = when (currentMood) {
+                            MoodLevel.GREAT, MoodLevel.GOOD -> Success
+                            MoodLevel.OKAY -> Primary
+                            MoodLevel.LOW, MoodLevel.STRUGGLING -> Color(0xFFFF9800)
+                            null -> Color.Transparent
+                        }
+                        val dailyWellColors = LocalDailyWellColors.current
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.Transparent,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            moodTintColor.copy(alpha = 0.15f),
+                                            dailyWellColors.glassBackground
+                                        )
+                                    )
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = moodTintColor.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
                         ) {
                             Text(
                                 text = currentMood?.let { MoodPrompts.getEncouragement(it) } ?: "",
@@ -135,7 +156,7 @@ fun MoodCheckCard(
                         Text(
                             "Skip",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -144,15 +165,21 @@ fun MoodCheckCard(
     }
 }
 
+// B2: More dramatic bounce animation on mood selection
 @Composable
 private fun MoodOption(
     mood: MoodLevel,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    // B2: Dramatic bounce: 1f -> 1.3f -> 1f spring when selected
     val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.2f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        targetValue = if (isSelected) 1.3f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "moodBounce"
     )
 
     Column(
@@ -182,9 +209,11 @@ private fun MoodOption(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = mood.emoji,
-                fontSize = 24.sp
+            Icon(
+                imageVector = DailyWellIcons.getMoodIcon(mood.name),
+                contentDescription = mood.label,
+                modifier = Modifier.size(24.dp),
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -204,32 +233,49 @@ private fun MoodOption(
 }
 
 /**
- * Compact mood display for after check-in
+ * B4: Compact mood display with GlassChip, entrance animation, and subtle pulse
  */
 @Composable
 fun MoodIndicator(
     mood: MoodLevel,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+    // B4: Entrance animation
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
+
+    AnimatedVisibility(
+        visible = appeared,
+        enter = scaleIn(
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        ) + fadeIn()
     ) {
-        Text(text = mood.emoji, fontSize = 16.sp)
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = "Feeling ${mood.label.lowercase()}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // B4: Subtle pulse on emoji
+        val emojiPulse = rememberPulseScale(1f, 1.06f, 1200)
+
+        GlassChip(
+            modifier = modifier
+        ) {
+            Icon(
+                imageVector = DailyWellIcons.getMoodIcon(mood.name),
+                contentDescription = mood.label,
+                modifier = Modifier
+                    .size(16.dp)
+                    .graphicsLayer { scaleX = emojiPulse; scaleY = emojiPulse },
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Feeling ${mood.label.lowercase()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
 /**
- * Trial banner showing days remaining with urgency
+ * B5: Trial banner with urgency breathing animation and glass treatment
  */
 @Composable
 fun TrialBanner(
@@ -243,27 +289,46 @@ fun TrialBanner(
         else -> Primary // Normal
     }
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = urgencyColor.copy(alpha = 0.15f)
-        ),
-        shape = RoundedCornerShape(12.dp)
+    val dailyWellColors = LocalDailyWellColors.current
+
+    // B5: Glass card with colored border and entrance slide-in
+    GlassCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .fadeInOnAppear(durationMs = 400, delay = 50)
+            .then(
+                // B5: Breathing animation for critical urgency
+                if (daysRemaining <= 2) Modifier.breathingAnimation(
+                    minScale = 1f, maxScale = 1.01f, durationMs = 1500
+                ) else Modifier
+            ),
+        elevation = ElevationLevel.Subtle,
+        cornerRadius = 14.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = urgencyColor.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(14.dp)
+                )
                 .clickable { onUpgradeClick() }
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val emoji = when {
-                daysRemaining <= 2 -> "⚠️"
-                daysRemaining <= 5 -> "⏰"
-                else -> "🎁"
+            val bannerIcon = when {
+                daysRemaining <= 2 -> DailyWellIcons.Status.Warning
+                daysRemaining <= 5 -> DailyWellIcons.Misc.Timer
+                else -> DailyWellIcons.Gamification.Gift
             }
 
-            Text(text = emoji, fontSize = 24.sp)
+            Icon(
+                imageVector = bannerIcon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = urgencyColor
+            )
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
@@ -284,40 +349,60 @@ fun TrialBanner(
                 )
             }
 
-            Text(
-                text = "→",
-                fontSize = 20.sp,
-                color = urgencyColor
+            Icon(
+                imageVector = DailyWellIcons.Nav.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = urgencyColor
             )
         }
     }
 }
 
 /**
- * Social proof notification
+ * B6: Social proof banner with GlassCard, community icon, PulsingDot, and fade-in
  */
 @Composable
 fun SocialProofBanner(
     message: String,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(8.dp)
+    // B6: Glass card with entrance fade-in
+    GlassCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .fadeInOnAppear(durationMs = 500, delay = 100),
+        elevation = ElevationLevel.Subtle,
+        cornerRadius = 12.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // B6: Community icon on the left
+            Icon(
+                imageVector = DailyWellIcons.Social.People,
+                contentDescription = "Community",
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // B6: PulsingDot to indicate "live" social proof
+            PulsingDot(
+                color = Color(0xFF10B981),
+                size = 8.dp
             )
         }
     }
