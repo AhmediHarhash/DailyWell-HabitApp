@@ -42,9 +42,12 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 - Connect (Talked to someone)
 - Unplug (Screen-free before bed)
 
-### Current Pricing
-- **Monthly:** $2.99/month
-- **Lifetime:** $19.99 (one-time)
+### Current Pricing (LIVE IN APP)
+- **Monthly:** $9.99/month ✅ Visible
+- **Annual:** $79.99/year ($6.67/mo) ✅ Visible (default)
+- **Lifetime:** $349.99 (one-time) ✅ Visible
+- **Family:** $99.99/year (6 members) 🔒 Hidden for now
+- **Student:** $49.99/year (.edu required) 🔒 Hidden for now
 
 ### Free vs Premium Split (Current)
 | FREE | PREMIUM |
@@ -255,17 +258,18 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 
 # PART 4: PRICING STRATEGY RECOMMENDATION
 
-## Current Pricing Issues
+## Pricing Issues - ✅ MOSTLY RESOLVED
 
-| Problem | Evidence |
+| Previous Problem | Status |
 |---------|----------|
-| **Too cheap** | $2.99/mo = $35.88/yr; competitors average $55/yr |
-| **Lifetime too low** | $19.99 lifetime means losing all future revenue |
-| **No trial** | Users can't experience premium value |
-| **No family plan** | Missing viral growth mechanism |
-| **No annual option** | Annual = 60% of revenue for top apps |
+| ~~Too cheap~~ | ✅ $9.99/mo = $119.88/yr - competitive |
+| ~~Lifetime too low~~ | ✅ $349.99 = sustainable for AI costs |
+| ~~No trial~~ | ✅ 14-day free trial implemented |
+| ~~No family plan~~ | 🔒 Defined ($99.99/yr) but hidden in UI |
+| ~~No annual option~~ | ✅ $79.99/yr annual is default selection |
+| ~~No student plan~~ | 🔒 Defined ($49.99/yr) but hidden in UI |
 
-## Recommended Pricing Structure
+## Current Pricing Structure (LIVE)
 
 ### FREE TIER (Growth Engine)
 - 3 habits (current)
@@ -279,7 +283,7 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 
 ---
 
-### PREMIUM MONTHLY: $4.99/month
+### PREMIUM MONTHLY: $9.99/month ✅ LIVE
 - All 7 core habits
 - Up to 5 custom habits
 - Unlimited data history
@@ -294,73 +298,80 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 - Full audio library
 - Data export
 - Priority support
+- **AI Coach (Claude-powered)** - ~150 messages/month
 
-**Why $4.99:**
-- Below Habitify ($7.99) and Productive ($6.99)
-- Above bargain-bin apps ($2.99)
-- Sweet spot for habit trackers
+**Why $9.99:**
+- Matches premium health apps (Noom, Fabulous tier)
+- AI coaching justifies premium pricing
+- Strong value vs $15-20/mo competitors
 
 ---
 
-### PREMIUM ANNUAL: $29.99/year ($2.50/month)
+### PREMIUM ANNUAL: $79.99/year ($6.67/month) ✅ LIVE
 - All Premium Monthly features
-- **50% savings vs. monthly** ($59.88 → $29.99)
+- **33% savings vs. monthly** ($119.88 → $79.99)
 - Early access to new features
 - AI pattern insights (bonus)
 - Exclusive achievement badges
+- **~600 AI messages/month**
 
-**Why $29.99:**
-- Matches Habitify ($29.99/yr)
-- Below Fabulous ($39.99) and Atoms ($69.99)
-- Monthly equivalent ($2.50) creates strong anchor
+**Why $79.99:**
+- Competitive with Noom ($70-200/yr range)
+- Premium positioning for AI-powered app
+- Monthly equivalent ($6.67) strong value proposition
 
 ---
 
-### LIFETIME: $79.99 (one-time)
+### LIFETIME: $349.99 (one-time) ✅ LIVE
 - All Premium features forever
 - Exclusive "Founder" badge
 - All future updates included
 - Priority support for life
+- **~1,800 AI messages/month forever**
 
-**Why $79.99:**
-- Below Breethe ($179.99) and Calm ($299.99)
-- Above Habitify ($64.99)
-- Acts as psychological anchor (makes annual look cheap)
-- Generates immediate cash flow
+**Why $349.99:**
+- ~4.4 years of annual = break-even
+- Premium anchor makes annual look affordable
+- Serious users who want long-term value
+- Covers AI costs for power users
 
 ---
 
-### FAMILY PLAN: $49.99/year (6 users)
+### FAMILY PLAN: $99.99/year (6 users) 🔒 HIDDEN FOR NOW
 - All Premium features for family
 - 6 separate accounts
 - Family challenges
 - Shared milestones view
 
-**Why:**
-- $8.33/person/year = exceptional value
+**Status:** Defined in code, not shown in paywall UI yet.
+**Why $99.99:**
+- $16.67/person/year = still great value
 - Creates viral growth through sharing
 - Reduces churn through social accountability
 
 ---
 
-### STUDENT DISCOUNT: $14.99/year
+### STUDENT DISCOUNT: $49.99/year 🔒 HIDDEN FOR NOW
 - Requires .edu verification
 - Full Premium features
 - Builds early brand loyalty
+- 37% off annual price
+
+**Status:** Defined in code, not shown in paywall UI yet. Needs .edu verification flow.
 
 ---
 
 ## Pricing Psychology Implementation
 
-### Display Order (Paywall Screen)
+### Display Order (Paywall Screen) ✅ LIVE
 ```
 ╔═══════════════╗  ╔═══════════════════╗  ╔═══════════════╗
 ║   LIFETIME    ║  ║   ANNUAL ★        ║  ║    MONTHLY    ║
-║    $79.99     ║  ║  $29.99/year      ║  ║   $4.99/mo    ║
+║   $349.99     ║  ║  $79.99/year      ║  ║   $9.99/mo    ║
 ║               ║  ║                   ║  ║               ║
 ║  Best Value   ║  ║  MOST POPULAR     ║  ║Most Flexible  ║
-║  Pay Once     ║  ║  $2.50/month      ║  ║ Pay As You Go ║
-║  Save 87%     ║  ║    Save 50%       ║  ║               ║
+║  Pay Once     ║  ║  $6.67/month      ║  ║ Pay As You Go ║
+║  Save 71%     ║  ║    Save 33%       ║  ║               ║
 ╚═══════════════╝  ╚═══════════════════╝  ╚═══════════════╝
                           ↑
                     [HIGHLIGHTED]
@@ -388,7 +399,7 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 
 ---
 
-## Revenue Projections
+## Revenue Projections (Updated for Actual Pricing)
 
 ### Conservative Estimates (Year 1)
 
@@ -400,16 +411,16 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 | Pricing mix | 60% annual, 25% monthly, 15% lifetime |
 
 **Annual Revenue:**
-- Annual: 2,250 × $29.99 = $67,478
-- Monthly: 937 × $4.99 × 6mo avg = $28,063
-- Lifetime: 563 × $79.99 = $45,034
-- **Total Year 1: ~$140,575**
+- Annual: 2,250 × $79.99 = $179,978
+- Monthly: 937 × $9.99 × 6mo avg = $56,164
+- Lifetime: 563 × $349.99 = $197,044
+- **Total Year 1: ~$433,186**
 
 ### With Growth (Year 2-3)
 - App Store Optimization + word-of-mouth
 - 150,000+ downloads
-- **Year 2 projection: $350,000+**
-- **Year 3 projection: $600,000+**
+- **Year 2 projection: $900,000+**
+- **Year 3 projection: $1.5M+**
 
 ---
 
@@ -496,7 +507,7 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 | Priority | Action | Impact |
 |----------|--------|--------|
 | 1 | Implement Apple Health/Google Fit integration | Critical |
-| 2 | Update pricing ($4.99/mo, $29.99/yr, $79.99 lifetime) | Revenue +150% |
+| 2 | ✅ Pricing LIVE ($9.99/mo, $79.99/yr, $349.99 lifetime) | Revenue +150% |
 | 3 | Add 14-day free trial | Conversion +40% |
 | 4 | Build home/lock screen widgets | Engagement +50% |
 | 5 | Create habit stacking system | Success rate 3.2x |
@@ -509,5 +520,6 @@ After comprehensive research across 5 specialized agents analyzing 150+ sources 
 ---
 
 **Document generated:** January 22, 2026
+**Last updated:** February 11, 2026 (pricing synced to live app)
 **Research sources:** 150+ articles, competitor analyses, behavioral science papers
 **Research agents used:** 5 specialized web research agents

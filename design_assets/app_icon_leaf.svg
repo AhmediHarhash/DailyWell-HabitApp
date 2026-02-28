@@ -1,0 +1,19 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#FAF8F5"/>
+
+  <!-- Main leaf shape -->
+  <path d="M256 140C256 140 200 180 180 240C160 300 180 360 220 380C260 400 300 380 320 340C340 300 340 260 320 220C300 180 256 140 256 140Z"
+        fill="#5B8C6B" opacity="0.9"/>
+
+  <!-- Leaf vein/detail -->
+  <path d="M256 140C256 140 240 200 235 260C230 320 240 360 240 360"
+        stroke="#4A7358" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Accent leaf -->
+  <path d="M280 200C280 200 310 220 320 260C330 300 310 330 280 340C250 350 230 340 220 320"
+        fill="#81C784" opacity="0.6"/>
+
+  <!-- Wellness dot/seed -->
+  <circle cx="256" cy="360" r="8" fill="#5B8C6B"/>
+</svg>
