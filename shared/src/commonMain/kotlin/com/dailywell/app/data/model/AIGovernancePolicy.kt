@@ -92,7 +92,7 @@ object AIGovernancePolicy {
 
     fun rawCloudCostUsd(model: AIModelUsed, inputTokens: Int, outputTokens: Int): Float {
         return when (model) {
-            AIModelUsed.DECISION_TREE, AIModelUsed.QWEN_0_5B -> 0f
+            AIModelUsed.DECISION_TREE -> 0f
             AIModelUsed.CLAUDE_HAIKU ->
                 (inputTokens * 1.00f + outputTokens * 5.00f) / 1_000_000
             AIModelUsed.CLAUDE_SONNET ->

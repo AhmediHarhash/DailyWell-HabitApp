@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
@@ -34,14 +35,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dailywell.app.core.theme.AccentIndigo
+import com.dailywell.app.core.theme.AccentSky
 import com.dailywell.app.core.theme.LocalDailyWellColors
 import com.dailywell.app.core.theme.Primary
-import com.dailywell.app.ai.SLMDownloadProgress
 import com.dailywell.app.data.model.ImplementationIntention
 import com.dailywell.app.data.model.MoodLevel
 import com.dailywell.app.data.model.ThemeMode
 import com.dailywell.app.data.model.TodayViewMode
 import com.dailywell.app.data.model.UserSettings
+import com.dailywell.app.data.model.UserAIUsage
+import com.dailywell.app.data.repository.AICoachingRepository
 import com.dailywell.app.data.repository.SettingsRepository
 import com.dailywell.app.domain.model.TimeOfDay
 import com.dailywell.app.ui.components.*
@@ -66,7 +70,9 @@ fun TodayScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val settingsRepository: SettingsRepository = koinInject()
+    val aiCoachingRepository: AICoachingRepository = koinInject()
     val settings by settingsRepository.getSettings().collectAsState(initial = UserSettings())
+    val aiUsage by aiCoachingRepository.getAIUsage().collectAsState(initial = null as UserAIUsage?)
     val systemDarkTheme = isSystemInDarkTheme()
     val isDarkThemeEnabled = when (settings.themeMode) {
         ThemeMode.LIGHT -> false
@@ -80,6 +86,7 @@ fun TodayScreen(
 
     // State for confetti celebration
     var showConfetti by remember { mutableStateOf(false) }
+    var showHabitChecklist by rememberSaveable { mutableStateOf(false) }
 
     // Track when all habits are completed for confetti
     val allHabitsComplete = uiState.completedCount == uiState.totalCount && uiState.totalCount > 0
@@ -265,6 +272,18 @@ fun TodayScreen(
                         )
                     }
 
+                    item(key = "command_center") {
+                        CommandCenterCard(
+                            aiUsage = aiUsage,
+                            completedCount = uiState.completedCount,
+                            totalCount = uiState.totalCount,
+                            onOpenCoach = onNavigateToAICoach,
+                            onOpenInsights = onNavigateToInsights,
+                            onOpenScan = onNavigateToScan,
+                            onOpenWorkout = onNavigateToWorkout
+                        )
+                    }
+
                     item(key = "today_view_mode_toggle") {
                         TodayViewModeToggle(
                             mode = settings.todayViewMode,
@@ -322,40 +341,63 @@ fun TodayScreen(
                             title = "Today's Plan",
                             subtitle = "Check off completed habits",
                             accentIcon = DailyWellIcons.Habits.HabitStacking,
-                            accentColor = Color(0xFF4A9E8F)
+                            accentColor = AccentSky
                         )
                     }
 
-                    groupedHabits.forEach { (timeOfDay, habitsInGroup) ->
-                        val totalInGroup = habitsInGroup.size
-                        val completedInGroup = habitsInGroup.count { habit ->
-                            uiState.completions[habit.id] == true
-                        }
-                        item(key = "header_${timeOfDay.name}") {
-                            TimeOfDaySectionHeader(
-                                timeOfDay = timeOfDay,
-                                completedCount = completedInGroup,
-                                totalCount = totalInGroup
+                    val shouldCollapseChecklist = !coreTrackerOnly && !showHabitChecklist && mode != TodayLayoutMode.DONE_FOR_TODAY
+
+                    if (shouldCollapseChecklist) {
+                        item(key = "today_plan_collapsed") {
+                            ChecklistGateCard(
+                                completedCount = uiState.completedCount,
+                                totalCount = uiState.totalCount,
+                                onOpenChecklist = { showHabitChecklist = true }
                             )
                         }
-
-                        itemsIndexed(
-                            items = habitsInGroup,
-                            key = { _, habit -> habit.id }
-                        ) { index, habit ->
-                            StaggeredItem(
-                                index = index,
-                                delayPerItem = 60L,
-                                baseDelay = 100L
-                            ) {
-                                HabitCheckItem(
-                                    habit = habit,
+                    } else {
+                        groupedHabits.forEach { (timeOfDay, habitsInGroup) ->
+                            val totalInGroup = habitsInGroup.size
+                            val completedInGroup = habitsInGroup.count { habit ->
+                                uiState.completions[habit.id] == true
+                            }
+                            item(key = "header_${timeOfDay.name}") {
+                                TimeOfDaySectionHeader(
                                     timeOfDay = timeOfDay,
-                                    isCompleted = uiState.completions[habit.id] == true,
-                                    onToggle = { completed ->
-                                        viewModel.toggleHabit(habit.id, completed)
-                                    }
+                                    completedCount = completedInGroup,
+                                    totalCount = totalInGroup
                                 )
+                            }
+
+                            itemsIndexed(
+                                items = habitsInGroup,
+                                key = { _, habit -> habit.id }
+                            ) { index, habit ->
+                                StaggeredItem(
+                                    index = index,
+                                    delayPerItem = 60L,
+                                    baseDelay = 100L
+                                ) {
+                                    HabitCheckItem(
+                                        habit = habit,
+                                        timeOfDay = timeOfDay,
+                                        isCompleted = uiState.completions[habit.id] == true,
+                                        onToggle = { completed ->
+                                            viewModel.toggleHabit(habit.id, completed)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!coreTrackerOnly) {
+                            item(key = "today_plan_hide") {
+                                TextButton(
+                                    onClick = { showHabitChecklist = false },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = AccentSky)
+                                ) {
+                                    Text("Hide checklist")
+                                }
                             }
                         }
                     }
@@ -452,6 +494,158 @@ private fun TodayViewModeToggle(
                     onClick = { onModeChange(TodayViewMode.FULL) },
                     label = { Text("Full") }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommandCenterCard(
+    aiUsage: UserAIUsage?,
+    completedCount: Int,
+    totalCount: Int,
+    onOpenCoach: () -> Unit,
+    onOpenInsights: () -> Unit,
+    onOpenScan: () -> Unit,
+    onOpenWorkout: () -> Unit
+) {
+    val completionPercent = if (totalCount > 0) ((completedCount * 100f) / totalCount).toInt() else 0
+    val aiPercent = aiUsage?.percentRemaining?.toInt()?.coerceIn(0, 100) ?: 100
+    val planName = aiUsage?.planType?.displayName ?: "Free"
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.84f),
+        tonalElevation = 1.dp,
+        border = BorderStroke(1.dp, AccentSky.copy(alpha = 0.24f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Smart Command Center",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "AI + essentials in one place",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = AccentSky.copy(alpha = 0.16f)
+                ) {
+                    Text(
+                        text = "AI $aiPercent% • $planName",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AccentSky
+                    )
+                }
+            }
+
+            Text(
+                text = "Today: $completionPercent% complete. Pick one next action.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(
+                        onClick = onOpenCoach,
+                        label = { Text("Coach") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = DailyWellIcons.Coaching.AICoach,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                    AssistChip(
+                        onClick = onOpenScan,
+                        label = { Text("Scan food") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = DailyWellIcons.Health.FoodScan,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(
+                        onClick = onOpenInsights,
+                        label = { Text("Insights") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = DailyWellIcons.Analytics.Pattern,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                    AssistChip(
+                        onClick = onOpenWorkout,
+                        label = { Text("Workout") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = DailyWellIcons.Health.Workout,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChecklistGateCard(
+    completedCount: Int,
+    totalCount: Int,
+    onOpenChecklist: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.68f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Checklist hidden",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "$completedCount / $totalCount habits completed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Button(
+                onClick = onOpenChecklist,
+                colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
+            ) {
+                Text("Open")
             }
         }
     }
@@ -588,29 +782,8 @@ private fun EnterpriseTodayHeader(
                     .fillMaxWidth()
                     .padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.End
             ) {
-                Text(
-                    text = "DailyWell",
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (-1.2).sp,
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFFFFFFF),
-                                Color(0xFFD9F0FF),
-                                Color(0xFFA8DFFF)
-                            )
-                        ),
-                        shadow = Shadow(
-                            color = Color(0xFFAED8FF).copy(alpha = glowPulse),
-                            offset = Offset(0f, 0f),
-                            blurRadius = 30f
-                        )
-                    )
-                )
-
                 Surface(
                     modifier = Modifier
                         .size(44.dp)
@@ -1895,160 +2068,6 @@ private data class TutorialTip(
     val alignment: Alignment
 )
 
-/**
- * SLM Model Download Progress Card
- * Shows on TodayScreen when no model is downloaded yet.
- * Non-blocking, dismissible â€” app is fully usable during download.
- */
-@Composable
-private fun SLMDownloadCard(
-    progress: SLMDownloadProgress,
-    onStartDownload: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    // Storage warning uses a distinct amber/orange tint to stand out
-    val isStorageWarning = progress is SLMDownloadProgress.NeedsStorage
-
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = ElevationLevel.Subtle,
-        cornerRadius = 20.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when (progress) {
-                        is SLMDownloadProgress.NotStarted -> "Offline AI Coach"
-                        is SLMDownloadProgress.Downloading -> "Setting up AI coach..."
-                        is SLMDownloadProgress.Failed -> "Download failed"
-                        is SLMDownloadProgress.NeedsStorage -> "Storage needed"
-                        is SLMDownloadProgress.WaitingForWifi -> "Waiting for WiFi"
-                        else -> "AI Coach"
-                    },
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isStorageWarning) Color(0xFFE65100) else MaterialTheme.colorScheme.onSurface
-                )
-                // Only allow dismiss for non-critical states â€” NEVER for storage warning
-                if (progress is SLMDownloadProgress.NotStarted ||
-                    progress is SLMDownloadProgress.Failed ||
-                    progress is SLMDownloadProgress.WaitingForWifi
-                ) {
-                    Text(
-                        text = "Later",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onDismiss() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            when (progress) {
-                is SLMDownloadProgress.NotStarted -> {
-                    Text(
-                        text = "Download your AI coach for free, offline coaching (~380 MB over WiFi).",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Primary
-                        )
-                    ) {
-                        Text("Download AI Coach (WiFi)")
-                    }
-                }
-                is SLMDownloadProgress.Downloading -> {
-                    val percent = (progress.progress * 100).toInt()
-                    Text(
-                        text = "Setting up your personal AI coach... $percent%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { progress.progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = Primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                }
-                is SLMDownloadProgress.Failed -> {
-                    Text(
-                        text = "Something went wrong. Tap to retry on WiFi.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Retry Download")
-                    }
-                }
-                is SLMDownloadProgress.NeedsStorage -> {
-                    // This card CANNOT be dismissed â€” user must free space
-                    val needMB = progress.needBytes / (1024 * 1024)
-                    Text(
-                        text = "Free up ${needMB}MB to unlock your personal AI coach. " +
-                            "Without it, coaching features are limited to 10 messages per day.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFE65100)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE65100)
-                        )
-                    ) {
-                        Text("Check Storage Again", color = Color.White)
-                    }
-                }
-                is SLMDownloadProgress.WaitingForWifi -> {
-                    Text(
-                        text = "Your AI coach is ready to download (~380 MB). Connect to WiFi to start - we'll never use your mobile data.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Check Connection")
-                    }
-                }
-                else -> { /* Ready or Dismissed â€” not shown */ }
-            }
-        }
-    }
-}
 
 /**
  * Recovery prompt dialog â€” shown when user's streak was broken.
@@ -2271,4 +2290,5 @@ private fun IntentionReminderCard(
         }
     }
 }
+
 

@@ -47,7 +47,6 @@ configurations.all {
 android {
     namespace = "com.dailywell.android"
     compileSdk = 35
-    assetPacks += mutableSetOf(":slmModelPack")
 
     defaultConfig {
         applicationId = "com.dailywell.android"

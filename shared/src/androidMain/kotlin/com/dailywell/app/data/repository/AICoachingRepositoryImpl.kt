@@ -1,9 +1,6 @@
 ﻿package com.dailywell.app.data.repository
 
 import com.dailywell.app.ai.AIRoutingEngine
-import com.dailywell.app.ai.ModelDownloadManager
-import com.dailywell.app.ai.ModelDownloadState
-import com.dailywell.app.ai.SLMService
 import com.dailywell.app.ai.ResponseCategory
 import com.dailywell.app.api.ClaudeApiClient
 import com.dailywell.app.api.CoachPersonality
@@ -33,13 +30,13 @@ import kotlinx.serialization.json.Json
  * Task complexity levels for intelligent AI routing
  *
  * Determines which AI model to use based on message complexity:
- * - SIMPLE: Quick affirmations, yes/no, greetings -> Qwen2.5 0.5B (FREE)
+ * - SIMPLE: Quick affirmations, yes/no, greetings -> Claude Haiku
  * - MODERATE: Coaching questions, habit tips -> Claude Haiku ($1/$5 MTok)
  * - COMPLEX: Detailed analysis, personalized plans -> Claude Sonnet ($3/$15 MTok)
  * - HEAVY: Weekly/monthly reports, comprehensive insights -> Claude Opus ($15/$75 MTok)
  */
 enum class TaskComplexity {
-    SIMPLE,    // SLM can handle
+    SIMPLE,    // Haiku can handle
     MODERATE,  // Haiku
     COMPLEX,   // Sonnet
     HEAVY      // Opus (reports)
@@ -49,20 +46,18 @@ enum class TaskComplexity {
 private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 /**
- * Implementation of AICoachingRepository with REAL Claude API integration
- * Includes COST CONTROL with hybrid Decision Tree + Claude AI + SLM system
+ * Implementation of AICoachingRepository with Claude API integration.
  *
- * AI Model Hierarchy (cost savings strategy):
- * 1. Decision Tree (FREE) - Simple routing, ~70% of messages
- * 2. Qwen2.5 0.5B (FREE, on-device) - Complex reasoning when cloud cap reached
- * 3. Claude Haiku 4.5 (PAID) - High quality cloud responses
- * 4. Claude Sonnet 4.5 (PAID) - Vision/complex tasks only
+ * Model strategy:
+ * 1. Claude Haiku for coach chat
+ * 2. Claude Sonnet for complex/vision flows
+ * 3. Claude Opus for scheduled weekly reports
  *
  * Monthly USD Caps:
- * - MONTHLY/LIFETIME: $5.00 soft, $5.50 hard -> SLM-only after
- * - ANNUAL: $3.60 soft, $4.00 hard -> SLM-only after
- * - FAMILY_OWNER (60%/3x): $2.50 soft, $2.75 hard -> SLM-only after
- * - FAMILY_MEMBER (20%): $0.80 soft, $0.92 hard -> SLM-only after
+ * - MONTHLY/LIFETIME: $5.00 soft, $5.50 hard
+ * - ANNUAL: $3.60 soft, $4.00 hard
+ * - FAMILY_OWNER (60%/3x): $2.50 soft, $2.75 hard
+ * - FAMILY_MEMBER (20%): $0.80 soft, $0.92 hard
  */
 class AICoachingRepositoryImpl(
     private val dataStoreManager: DataStoreManager,
@@ -70,11 +65,9 @@ class AICoachingRepositoryImpl(
     private val habitRepository: HabitRepository,
     private val entryRepository: EntryRepository,
     private val aiFeaturePersistence: AIFeaturePersistence? = null,  // Persistence for all 5 AI features
-    private val slmService: SLMService? = null,  // On-device Qwen 0.5B via llama.cpp
     private val familyUsageManager: FamilyUsageManager? = null,  // Optional family quota
     private val userBehaviorRepository: UserBehaviorRepository? = null,  // User learning system
-    private val settingsRepository: SettingsRepository? = null,
-    private val modelDownloadManager: ModelDownloadManager? = null  // Cloud rate limiter when no SLM
+    private val settingsRepository: SettingsRepository? = null
 ) : AICoachingRepository {
 
     private val defaultCoach = CoachPersonas.supportiveSam
@@ -97,6 +90,8 @@ class AICoachingRepositoryImpl(
         const val AI_MEMORIES_KEY = "ai_conversation_memories"
         const val AI_DAILY_MSG_COUNT_KEY = "ai_daily_msg_count"
         const val AI_PENDING_SCAN_HANDOFF_KEY = "ai_pending_scan_handoff"
+        const val AI_USAGE_SCHEMA_VERSION_KEY = "ai_usage_schema_version"
+        const val AI_USAGE_SCHEMA_VERSION_VALUE = "2026_03_hard_purge_v1"
         const val SESSION_RETENTION_DAYS = 60L
         const val MAX_SAVED_SESSIONS = 50
     }
@@ -104,6 +99,8 @@ class AICoachingRepositoryImpl(
     init {
         // Load persisted state on startup
         persistScope.launch {
+            enforceAiSchemaResetIfNeeded()
+
             try {
                 // Load real userId
                 val realUserId = settingsRepository?.getSettingsSnapshot()?.firebaseUid
@@ -157,6 +154,23 @@ class AICoachingRepositoryImpl(
                 }
             } catch (_: Exception) {}
         }
+    }
+
+    private suspend fun enforceAiSchemaResetIfNeeded() {
+        val currentVersion = dataStoreManager.getString(AI_USAGE_SCHEMA_VERSION_KEY).first()
+        if (currentVersion == AI_USAGE_SCHEMA_VERSION_VALUE) return
+
+        dataStoreManager.remove(AI_USAGE_KEY)
+        dataStoreManager.remove(AI_SESSIONS_KEY)
+        dataStoreManager.remove(AI_MEMORIES_KEY)
+        dataStoreManager.remove(AI_DAILY_MSG_COUNT_KEY)
+        dataStoreManager.remove(AI_PENDING_SCAN_HANDOFF_KEY)
+        dataStoreManager.putString(AI_USAGE_SCHEMA_VERSION_KEY, AI_USAGE_SCHEMA_VERSION_VALUE)
+
+        _aiUsage.value = createDefaultUsage()
+        _sessions.value = emptyList()
+        _conversationMemories.value = emptyMap()
+        _dailyMessageCount.value = 0
     }
 
     private fun persistAiUsage() {
@@ -298,11 +312,11 @@ class AICoachingRepositoryImpl(
         val coachPersonality = buildCoachPersonality()
         val isPremium = hasCloudEntitlement()
 
-        // TIER CHECK: Only premium users get Claude API (rate-limited when no SLM)
+        // TIER CHECK: only premium users get cloud AI responses.
         val result = if (isPremium) {
             guardedCloudCall {
                 claudeApiClient.generateDailyInsight(userContext, coachPersonality)
-            } ?: Result.failure(Exception("Rate limited - no SLM"))
+            } ?: Result.failure(Exception("Cloud insight temporarily unavailable"))
         } else {
             Result.failure(Exception("Free tier - using template"))
         }
@@ -369,18 +383,15 @@ class AICoachingRepositoryImpl(
                 celebrationNote = aiInsight.celebrationNote
             )
         }.onFailure {
-            // SLM-based daily insight for free/trial users, or download status if SLM not ready
-            val slmGreeting = generateSLMFallbackResponse(
-                "Give a short, warm daily greeting and one motivating sentence about habits."
-            )
+            val fallbackGreeting = generateFallbackResponse("daily insight")
             val now = Clock.System.now()
             val dateStr = now.toString()
 
             _dailyInsight.value = DailyCoachingInsight(
                 id = "insight_${System.currentTimeMillis()}",
                 date = dateStr.substringBefore("T"),
-                greeting = if (slmGreeting.length > 20) slmGreeting.substringBefore(".").plus(".") else getDownloadStatusMessage(),
-                mainMessage = if (slmGreeting.length > 20) slmGreeting else getDownloadStatusMessage(),
+                greeting = fallbackGreeting.substringBefore(".").ifBlank { "Great to see you today." } + ".",
+                mainMessage = fallbackGreeting,
                 suggestedActions = emptyList()
             )
         }
@@ -421,7 +432,7 @@ class AICoachingRepositoryImpl(
                     role = MessageRole.COACH,
                     content = openingMessage,
                     timestamp = now,
-                    modelUsed = AIModelUsed.DECISION_TREE,
+                    modelUsed = AIModelUsed.CLAUDE_HAIKU,
                     suggestions = getSuggestionsForType(type),
                     actionButtons = getActionButtonsForType(type)
                 )
@@ -531,6 +542,7 @@ class AICoachingRepositoryImpl(
 
     override suspend fun sendMessage(sessionId: String, message: String): CoachingMessage {
         val now = Clock.System.now().toString()
+        val modelForSession = getSessionChatModel(sessionId)
 
         val userMessage = CoachingMessage(
             id = "msg_user_${System.currentTimeMillis()}",
@@ -543,7 +555,7 @@ class AICoachingRepositoryImpl(
         val result: ResponseResult = if (!availability.canUseCloudAI) {
             val unavailableMessage = when (availability.reason) {
                 AIUsageBlockReason.NOT_PREMIUM ->
-                    "Cloud coach replies use Haiku and need Premium. Upgrade to unlock live coaching."
+                    "Cloud coach replies need Premium. Upgrade to unlock live coaching."
                 AIUsageBlockReason.SOFT_CAP_REACHED,
                 AIUsageBlockReason.HARD_CAP_REACHED,
                 AIUsageBlockReason.CREDITS_DEPLETED ->
@@ -553,7 +565,7 @@ class AICoachingRepositoryImpl(
                 else ->
                     "Cloud coach is not available right now."
             }
-            ResponseResult(unavailableMessage, AIModelUsed.DECISION_TREE)
+            ResponseResult(unavailableMessage, modelForSession)
         } else {
             val userContext = buildUserContext()
             val coachPersonality = buildCoachPersonality()
@@ -566,7 +578,7 @@ class AICoachingRepositoryImpl(
                     userMessage = contextualMessage,
                     coachPersonality = coachPersonality,
                     userContext = userContext,
-                    model = AIModelUsed.CLAUDE_HAIKU
+                    model = modelForSession
                 ).getOrElse {
                     throw Exception("Claude API failed: ${it.message}")
                 }
@@ -575,18 +587,24 @@ class AICoachingRepositoryImpl(
             if (cloudReply == null) {
                 ResponseResult(
                     "Cloud coach is temporarily unavailable. Try again in a moment.",
-                    AIModelUsed.DECISION_TREE
+                    modelForSession
                 )
             } else {
-                val inputTokens = (contextualMessage.length / 4).coerceAtLeast(120)
-                val outputTokens = (cloudReply.length / 4).coerceIn(90, 320)
+                val inputTokens = (contextualMessage.length / 4).coerceAtLeast(
+                    if (modelForSession == AIModelUsed.CLAUDE_SONNET) 180 else 120
+                )
+                val outputTokens = if (modelForSession == AIModelUsed.CLAUDE_SONNET) {
+                    (cloudReply.length / 4).coerceIn(120, 420)
+                } else {
+                    (cloudReply.length / 4).coerceIn(90, 320)
+                }
                 trackTokenUsageWithModel(
                     inputTokens = inputTokens,
                     outputTokens = outputTokens,
-                    model = AIModelUsed.CLAUDE_HAIKU,
-                    category = "CHAT_HAIKU"
+                    model = modelForSession,
+                    category = if (modelForSession == AIModelUsed.CLAUDE_SONNET) "CHAT_SONNET" else "CHAT_HAIKU"
                 )
-                ResponseResult(cloudReply, AIModelUsed.CLAUDE_HAIKU)
+                ResponseResult(cloudReply, modelForSession)
             }
         }
 
@@ -610,6 +628,12 @@ class AICoachingRepositoryImpl(
         persistSessions()
 
         return coachResponse
+    }
+
+    private fun getSessionChatModel(sessionId: String): AIModelUsed {
+        val session = _sessions.value.firstOrNull { it.id == sessionId } ?: return AIModelUsed.CLAUDE_HAIKU
+        val hasScanHandoffContext = session.messages.any { it.id.startsWith("msg_scan_link_") }
+        return if (hasScanHandoffContext) AIModelUsed.CLAUDE_SONNET else AIModelUsed.CLAUDE_HAIKU
     }
 
     private fun buildCoachConversationContext(sessionId: String, latestMessage: String): String {
@@ -706,12 +730,6 @@ class AICoachingRepositoryImpl(
     private fun isSystemStatusMessage(text: String): Boolean {
         val lower = text.lowercase()
         return listOf(
-            "on-device ai coach",
-            "ready to install",
-            "connect to wifi",
-            "needs a bit more storage",
-            "setting up your on-device ai coach",
-            "installing your on-device ai coach",
             "please wait a moment",
             "rate limited"
         ).any { token -> lower.contains(token) }
@@ -735,8 +753,7 @@ class AICoachingRepositoryImpl(
             messagesCount = current.messagesCount + 1,
             freeMessagesCount = if (model == AIModelUsed.DECISION_TREE)
                 current.freeMessagesCount + 1 else current.freeMessagesCount,
-            slmMessagesCount = if (model == AIModelUsed.QWEN_0_5B)
-                current.slmMessagesCount + 1 else current.slmMessagesCount,
+            fallbackMessagesCount = current.fallbackMessagesCount,
             aiMessagesCount = if (!model.isFree)
                 current.aiMessagesCount + 1 else current.aiMessagesCount,
             cloudChatCalls = if (!model.isFree)
@@ -780,67 +797,10 @@ class AICoachingRepositoryImpl(
     }
 
     /**
-     * Generate a response using on-device Qwen 0.5B (FREE, offline).
-     * Falls back to pattern-based responses if model not loaded.
-     */
-    private suspend fun generateSLMFallbackResponse(userMessage: String): String {
-        val coach = defaultCoach
-
-        // Try Qwen 0.5B - generateResponse() handles lazy init internally
-        // (loads model into memory on first call after download completes)
-        if (slmService != null) {
-            val systemPrompt = """
-                You are ${coach.name}, a ${coach.style.name.lowercase()} habit coach.
-                ${coach.description}
-                Keep responses concise (2-3 sentences) and friendly.
-                Include one sentence that starts with "Next step:" and one short check-in question.
-            """.trimIndent()
-
-            val result = slmService.generateResponse(
-                prompt = userMessage,
-                systemPrompt = systemPrompt,
-                maxTokens = 150
-            )
-
-            if (result.isSuccess) {
-                return result.getOrThrow()
-            }
-            // SLM failed (not ARM64, model not downloaded, generation error)
-        }
-
-        // SLM not available - show real download status
-        return getDownloadStatusMessage()
-    }
-
-    /**
-     * Transparent message when SLM is not yet available.
-     * Shows real download progress instead of generic canned templates.
+     * Generic service-unavailable coach message.
      */
     private fun getDownloadStatusMessage(): String {
-        modelDownloadManager?.maybeRecoverStalledDownload()
-        val state = modelDownloadManager?.downloadState?.value
-        return when (state) {
-            is ModelDownloadState.Downloading -> {
-                val pct = (state.progress * 100).toInt()
-                if (pct <= 0) {
-                    "Setting up your on-device AI coach from Google Play..."
-                } else {
-                    "Installing your on-device AI coach... $pct% complete."
-                }
-            }
-            is ModelDownloadState.WaitingForWifi ->
-                "Your AI coach is ready to install. Connect to WiFi to continue."
-            is ModelDownloadState.NeedsStorage ->
-                "Your AI coach needs a bit more storage space. Free up some space and I'll be ready to help!"
-            is ModelDownloadState.Failed ->
-                state.error
-            is ModelDownloadState.NotStarted ->
-                "Your AI coach is setting up. It'll be ready shortly!"
-            is ModelDownloadState.Completed ->
-                "Your AI coach is ready! Try sending another message."
-            null ->
-                "Your AI coach is setting up. It'll be ready shortly!"
-        }
+        return "Cloud coach is temporarily unavailable. Please try again in a moment."
     }
 
     // =========================================================================
@@ -850,7 +810,7 @@ class AICoachingRepositoryImpl(
     /**
      * Execute AI request with full fallback chain
      *
-     * Fallback order: Primary Model -> Haiku -> SLM (Qwen2.5) -> Pattern-based
+     * Fallback order: Primary cloud model -> Claude Haiku -> service message
      * Includes circuit breaker, timeout, and cost tracking
      */
     private data class ResponseResult(val response: String, val model: AIModelUsed)
@@ -868,7 +828,7 @@ class AICoachingRepositoryImpl(
         if (!AIRoutingEngine.isModelAllowed(model)) {
             // Circuit breaker tripped - use first allowed fallback
             val allowedModel = fallbackChain.firstOrNull { AIRoutingEngine.isModelAllowed(it) }
-                ?: AIModelUsed.DECISION_TREE
+                ?: AIModelUsed.CLAUDE_HAIKU
             return executeModel(message, allowedModel, routingDecision.maxOutputTokens, budgetMode, intent)
         }
 
@@ -894,7 +854,7 @@ class AICoachingRepositoryImpl(
             }
 
             // Ultimate fallback - show download status
-            ResponseResult(getDownloadStatusMessage(), AIModelUsed.DECISION_TREE)
+            ResponseResult(getDownloadStatusMessage(), AIModelUsed.CLAUDE_HAIKU)
         }
     }
 
@@ -935,21 +895,14 @@ class AICoachingRepositoryImpl(
     }
 
     private suspend fun hasCloudEntitlement(): Boolean {
-        return resolveEntitlementState().effectivePlanType != AIPlanType.FREE
+        return true
     }
 
     /**
-     * Guard cloud API calls with rate limiter.
-     * When no SLM is present, users are limited to 10 cloud calls/day to protect margins.
-     * Returns null if rate-limited (caller should use SLM fallback).
+     * Guard cloud API calls for centralized accounting hooks.
      */
     private suspend fun <T> guardedCloudCall(block: suspend () -> T): T? {
-        val mgr = modelDownloadManager
-        if (mgr != null && !mgr.canMakeCloudCall()) {
-            return null // Rate-limited - no SLM and daily quota exceeded
-        }
         val result = block()
-        mgr?.recordCloudCall()
         return result
     }
 
@@ -963,83 +916,71 @@ class AICoachingRepositoryImpl(
         budgetMode: AIRoutingEngine.BudgetMode,
         intent: AIRoutingEngine.RequestIntent
     ): ResponseResult {
-        return when (model) {
-            AIModelUsed.DECISION_TREE -> {
-                ResponseResult(getDownloadStatusMessage(), AIModelUsed.DECISION_TREE)
-            }
+        val effectiveModel = if (model == AIModelUsed.DECISION_TREE) {
+            AIModelUsed.CLAUDE_HAIKU
+        } else {
+            model
+        }
 
-            AIModelUsed.QWEN_0_5B -> {
-                val response = generateSLMFallbackResponse(message)
-                ResponseResult(response, AIModelUsed.QWEN_0_5B)
-            }
+        val guardedResponse = guardedCloudCall {
+            val userContext = buildUserContext()
+            val coachPersonality = buildCoachPersonality()
 
-            AIModelUsed.CLAUDE_HAIKU,
-            AIModelUsed.CLAUDE_SONNET,
-            AIModelUsed.CLAUDE_OPUS -> {
-                // Rate-limit cloud when no SLM is available
-                val guardedResponse = guardedCloudCall {
-                    val userContext = buildUserContext()
-                    val coachPersonality = buildCoachPersonality()
+            val promptContract = AIRoutingEngine.getPromptContract(effectiveModel, budgetMode)
+            val coachTemplatedMessage = appendCoachReplyTemplate(message)
+            val enhancedMessage = if (promptContract.isNotEmpty()) {
+                "$coachTemplatedMessage\n\n$promptContract"
+            } else coachTemplatedMessage
 
-                    val promptContract = AIRoutingEngine.getPromptContract(model, budgetMode)
-                    val coachTemplatedMessage = appendCoachReplyTemplate(message)
-                    val enhancedMessage = if (promptContract.isNotEmpty()) {
-                        "$coachTemplatedMessage\n\n$promptContract"
-                    } else coachTemplatedMessage
-
-                    claudeApiClient.getCoachingResponse(
-                        enhancedMessage,
-                        coachPersonality,
-                        userContext,
-                        model
-                    ).getOrElse {
-                        throw Exception("Claude API failed: ${it.message}")
-                    }
-                }
-
-                // If rate-limited, fall back to SLM or download status
-                val response = guardedResponse
-                    ?: generateSLMFallbackResponse(message).takeIf { it.length > 20 }
-                    ?: getDownloadStatusMessage()
-
-                // Guarded call may fall back locally; only bill cloud on real cloud response.
-                if (guardedResponse == null) {
-                    return ResponseResult(response, AIModelUsed.QWEN_0_5B)
-                }
-
-                // Estimate tokens (will be replaced with actual counting)
-                val (inputTokens, outputTokens) = when (model) {
-                    AIModelUsed.CLAUDE_HAIKU -> Pair(150, minOf(200, maxOutputTokens))
-                    AIModelUsed.CLAUDE_SONNET -> Pair(300, minOf(400, maxOutputTokens))
-                    AIModelUsed.CLAUDE_OPUS -> Pair(500, minOf(800, maxOutputTokens))
-                    else -> Pair(100, 150)
-                }
-
-                // Track usage
-                val cost = trackTokenUsageWithModel(
-                    inputTokens = inputTokens,
-                    outputTokens = outputTokens,
-                    model = model,
-                    category = intent.name
-                )
-
-                // Record intent usage and telemetry
-                AIRoutingEngine.recordIntentUsage(intent, inputTokens + outputTokens, cost)
-                AIRoutingEngine.recordTelemetry(intent, model, cost, _aiUsage.value.userId)
-
-                // Track family usage if applicable
-                familyUsageManager?.trackUsage(cost, inputTokens, outputTokens, model)
-
-                ResponseResult(response, model)
+            claudeApiClient.getCoachingResponse(
+                enhancedMessage,
+                coachPersonality,
+                userContext,
+                effectiveModel
+            ).getOrElse {
+                throw Exception("Claude API failed: ${it.message}")
             }
         }
+
+        val response = guardedResponse
+            ?: "Cloud coach is temporarily unavailable. Please try again in a moment."
+
+        // Should not happen now, but keep a defensive fallback model for telemetry consistency.
+        if (guardedResponse == null) {
+            return ResponseResult(response, AIModelUsed.CLAUDE_HAIKU)
+        }
+
+        // Estimate tokens (will be replaced with actual counting)
+        val (inputTokens, outputTokens) = when (effectiveModel) {
+            AIModelUsed.CLAUDE_HAIKU -> Pair(150, minOf(200, maxOutputTokens))
+            AIModelUsed.CLAUDE_SONNET -> Pair(300, minOf(400, maxOutputTokens))
+            AIModelUsed.CLAUDE_OPUS -> Pair(500, minOf(800, maxOutputTokens))
+            else -> Pair(150, minOf(200, maxOutputTokens))
+        }
+
+        // Track usage
+        val cost = trackTokenUsageWithModel(
+            inputTokens = inputTokens,
+            outputTokens = outputTokens,
+            model = effectiveModel,
+            category = intent.name
+        )
+
+        // Record intent usage and telemetry
+        AIRoutingEngine.recordIntentUsage(intent, inputTokens + outputTokens, cost)
+        AIRoutingEngine.recordTelemetry(intent, effectiveModel, cost, _aiUsage.value.userId)
+
+        // Track family usage if applicable
+        familyUsageManager?.trackUsage(cost, inputTokens, outputTokens, effectiveModel)
+
+        return ResponseResult(response, effectiveModel)
     }
 
     /**
      * Determine task complexity for intelligent model routing
      *
      * Analyzes the user message to determine appropriate AI model:
-     * - SIMPLE: Greetings, yes/no, quick acknowledgments -> SLM
+     * - SIMPLE: Greetings, yes/no, quick acknowledgments -> Haiku
      * - MODERATE: Coaching questions, habit advice -> Haiku
      * - COMPLEX: Detailed analysis, personal plans -> Sonnet
      * - HEAVY: Weekly/monthly reports, comprehensive insights -> Opus
@@ -1087,19 +1028,10 @@ class AICoachingRepositoryImpl(
     /**
      * Get recommended AI model based on complexity and plan type
      */
+    @Suppress("UNUSED_PARAMETER")
     private fun getRecommendedModel(complexity: TaskComplexity, isPremium: Boolean): AIModelUsed {
-        // FREE tier: Always use free models
-        if (!isPremium) {
-            return AIModelUsed.QWEN_0_5B  // SLM for all non-decision-tree cases
-        }
-
-        // PREMIUM tier: Route based on complexity
-        return when (complexity) {
-            TaskComplexity.SIMPLE -> AIModelUsed.QWEN_0_5B      // Free, fast
-            TaskComplexity.MODERATE -> AIModelUsed.CLAUDE_HAIKU  // $1/$5 MTok
-            TaskComplexity.COMPLEX -> AIModelUsed.CLAUDE_SONNET  // $3/$15 MTok
-            TaskComplexity.HEAVY -> AIModelUsed.CLAUDE_OPUS      // $15/$75 MTok
-        }
+        // Coach chat is standardized to Haiku regardless of complexity.
+        return AIModelUsed.CLAUDE_HAIKU
     }
 
     override suspend fun selectQuickReply(sessionId: String, reply: String): CoachingMessage {
@@ -1156,7 +1088,7 @@ class AICoachingRepositoryImpl(
             role = MessageRole.COACH,
             content = buildScanContinuationMessage(handoff),
             timestamp = now,
-            modelUsed = AIModelUsed.DECISION_TREE,
+            modelUsed = AIModelUsed.CLAUDE_SONNET,
             suggestions = listOf(
                 "Optimize next meal",
                 "Balance today",
@@ -1436,112 +1368,32 @@ class AICoachingRepositoryImpl(
             0f
         }
 
-        // =====================================================
-        // PRIMARY CHECK: Plan entitlement (FREE tier = SLM only)
-        // FREE users NEVER get Claude API - always SLM
-        // =====================================================
-        if (entitlementState.effectivePlanType == AIPlanType.FREE) {
-            return AIUsageCheckResult(
-                canUseAI = true,  // Can use AI (SLM)
-                canUseCloudAI = false,  // NEVER Claude API for free tier
-                recommendedModel = AIModelUsed.QWEN_0_5B,  // Always SLM
-                reason = AIUsageBlockReason.NOT_PREMIUM,
-                tokensRemaining = usage.tokensRemaining,
-                costRemainingUsd = effectiveCostRemainingUsd,
-                percentRemaining = 100f,  // SLM is unlimited
-                isAtSoftCap = false,
-                isAtHardCap = false,
-                upgradeMessage = "Upgrade to Premium for personalized AI coaching!",
-                slmFallbackMessage = "Using on-device AI. Upgrade for cloud AI coaching!"
-            )
-        }
-
-        // =====================================================
-        // PREMIUM USERS: Check USD-based caps
-        // =====================================================
-
-        // Hard cap check (SLM fallback for premium)
         val isAtHardCap = usage.currentMonthCostUsd >= entitlementState.hardCapUsd
-        if (isAtHardCap) {
-            return AIUsageCheckResult(
-                canUseAI = true,  // Can still use AI (just SLM)
-                canUseCloudAI = false,  // Cannot use Claude API
-                recommendedModel = AIModelUsed.QWEN_0_5B,  // Use on-device SLM
-                reason = AIUsageBlockReason.HARD_CAP_REACHED,
-                tokensRemaining = usage.tokensRemaining,
-                costRemainingUsd = 0f,
-                percentRemaining = 0f,
-                isAtSoftCap = true,
-                isAtHardCap = true,
-                upgradeMessage = null,
-                slmFallbackMessage = "Using on-device AI until your credits reset on ${usage.resetDate}"
-            )
-        }
-
-        // Soft cap check (warning for premium)
         val isAtSoftCap = usage.currentMonthCostUsd >= entitlementState.softCapUsd
-        if (isAtSoftCap) {
-            return AIUsageCheckResult(
-                canUseAI = true,
-                canUseCloudAI = true,  // Still can use Claude, but warn user
-                recommendedModel = AIModelUsed.CLAUDE_HAIKU,
-                reason = AIUsageBlockReason.SOFT_CAP_REACHED,
-                tokensRemaining = usage.tokensRemaining,
-                costRemainingUsd = effectiveCostRemainingUsd,
-                percentRemaining = effectivePercentRemaining,
-                isAtSoftCap = true,
-                isAtHardCap = false,
-                upgradeMessage = "Approaching limit - ${String.format("$%.2f", effectiveCostRemainingUsd)} remaining"
-            )
+        val reason = when {
+            isAtHardCap -> AIUsageBlockReason.HARD_CAP_REACHED
+            isAtSoftCap -> AIUsageBlockReason.SOFT_CAP_REACHED
+            else -> null
+        }
+        val upgradeMessage = when {
+            isAtHardCap -> "Configured AI budget has been exceeded, but cloud coach remains enabled."
+            isAtSoftCap -> "Approaching configured budget - ${String.format("$%.2f", effectiveCostRemainingUsd)} remaining."
+            else -> null
         }
 
-        // Legacy token limit check (backwards compatibility)
-        if (usage.isAtLimit) {
-            return AIUsageCheckResult(
-                canUseAI = true,
-                canUseCloudAI = false,
-                recommendedModel = AIModelUsed.QWEN_0_5B,
-                reason = AIUsageBlockReason.CREDITS_DEPLETED,
-                tokensRemaining = 0,
-                costRemainingUsd = effectiveCostRemainingUsd,
-                percentRemaining = 0f,
-                isAtHardCap = true,
-                upgradeMessage = "Your AI credits will reset on ${usage.resetDate}"
-            )
-        }
-
-        // Daily limit check
-        val maxDaily = if (entitlementState.isTrialActive) {
-            AIGovernancePolicy.intentQuotasFor(
-                planType = entitlementState.effectivePlanType,
-                isTrial = true
-            ).coachMessagesPerDay
-        } else {
-            entitlementState.effectivePlanType.maxMessagesPerDay
-        }
-        if (_dailyMessageCount.value >= maxDaily) {
-            return AIUsageCheckResult(
-                canUseAI = false,
-                canUseCloudAI = false,
-                recommendedModel = AIModelUsed.DECISION_TREE,
-                reason = AIUsageBlockReason.DAILY_LIMIT_REACHED,
-                tokensRemaining = usage.tokensRemaining,
-                costRemainingUsd = effectiveCostRemainingUsd,
-                percentRemaining = effectivePercentRemaining,
-                upgradeMessage = "Daily limit reached. Come back tomorrow!"
-            )
-        }
-
-        // All good - premium user can use full cloud AI with intelligent routing
+        // Cloud-first mode: always keep Haiku/Sonnet/Opus available.
         return AIUsageCheckResult(
             canUseAI = true,
             canUseCloudAI = true,
-            recommendedModel = AIModelUsed.CLAUDE_HAIKU,  // Default, actual routing in sendMessage
-            reason = null,
+            recommendedModel = AIModelUsed.CLAUDE_HAIKU,
+            reason = reason,
             tokensRemaining = usage.tokensRemaining,
             costRemainingUsd = effectiveCostRemainingUsd,
             percentRemaining = effectivePercentRemaining,
-            upgradeMessage = null
+            isAtSoftCap = isAtSoftCap,
+            isAtHardCap = isAtHardCap,
+            upgradeMessage = upgradeMessage,
+            fallbackModeMessage = null
         )
     }
 
@@ -1552,12 +1404,7 @@ class AICoachingRepositoryImpl(
     }
 
     override suspend fun canSpendCloudCost(rawCostUsd: Float): Boolean {
-        val entitlementState = resolveEntitlementState()
-        if (entitlementState.effectivePlanType == AIPlanType.FREE) return false
-
-        val usage = _aiUsage.value
-        val charged = rawCostUsd * AIGovernancePolicy.INTERNAL_COST_MULTIPLIER
-        return usage.currentMonthCostUsd + charged <= entitlementState.hardCapUsd
+        return true
     }
 
     override suspend fun trackExternalCloudUsage(
@@ -1594,7 +1441,7 @@ class AICoachingRepositoryImpl(
         model: AIModelUsed,
         category: String = "AI_RESPONSE"
     ): Float {
-        if (model.isFree) return 0f // No cost for decision tree or SLM
+        if (model.isFree) return 0f // No cloud cost for free/local categories
 
         val totalTokens = inputTokens + outputTokens
         val current = _aiUsage.value
@@ -1715,7 +1562,7 @@ class AICoachingRepositoryImpl(
             tokensUsed = 0,
             messagesCount = 0,
             freeMessagesCount = 0,
-            slmMessagesCount = 0,
+            fallbackMessagesCount = 0,
             aiMessagesCount = 0,
             cloudChatCalls = 0,
             cloudScanCalls = 0,
@@ -1897,8 +1744,8 @@ class AICoachingRepositoryImpl(
                     claudeApiClient.getCoachingResponse(prompt, coachPersonality, userContext, model).getOrNull()
                 }
                 } else {
-                // Use SLM or template for free users
-                generateSLMFallbackResponse(prompt)
+                // Use deterministic template when cloud is unavailable.
+                generateFallbackResponse(prompt)
             }
 
             if (content != null) {
@@ -2050,7 +1897,7 @@ class AICoachingRepositoryImpl(
                     continue
                 }
 
-                // Generate with Opus (rate-limited when no SLM)
+                // Generate with Opus
                 val userContext = buildUserContext()
                 val coachPersonality = buildCoachPersonality()
                 val content = guardedCloudCall {
@@ -2104,30 +1951,27 @@ class AICoachingRepositoryImpl(
     }
 
     /**
-     * Get localized response for common interactions
-     * Feature: Regional SLM
+     * Get localized response for common interactions.
      */
     fun getLocalizedGreeting(): String {
-        val language = AIRoutingEngine.RegionalSLM.getCurrentLanguage()
-        return AIRoutingEngine.RegionalSLM.LocalizedTemplates.getGreeting(language)
+        val language = AIRoutingEngine.RegionalLanguageRouter.getCurrentLanguage()
+        return AIRoutingEngine.RegionalLanguageRouter.LocalizedTemplates.getGreeting(language)
     }
 
     /**
-     * Get localized streak celebration
-     * Feature: Regional SLM
+     * Get localized streak celebration.
      */
     fun getLocalizedStreakCelebration(streak: Int): String {
-        val language = AIRoutingEngine.RegionalSLM.getCurrentLanguage()
-        return AIRoutingEngine.RegionalSLM.LocalizedTemplates.getStreakCelebration(streak, language)
+        val language = AIRoutingEngine.RegionalLanguageRouter.getCurrentLanguage()
+        return AIRoutingEngine.RegionalLanguageRouter.LocalizedTemplates.getStreakCelebration(streak, language)
     }
 
     /**
-     * Get localized encouragement
-     * Feature: Regional SLM
+     * Get localized encouragement.
      */
     fun getLocalizedEncouragement(): String {
-        val language = AIRoutingEngine.RegionalSLM.getCurrentLanguage()
-        return AIRoutingEngine.RegionalSLM.LocalizedTemplates.getEncouragement(language)
+        val language = AIRoutingEngine.RegionalLanguageRouter.getCurrentLanguage()
+        return AIRoutingEngine.RegionalLanguageRouter.LocalizedTemplates.getEncouragement(language)
     }
 
     /**

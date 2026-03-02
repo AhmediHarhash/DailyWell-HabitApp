@@ -28,7 +28,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 class ClaudeFoodVisionApi(
     private val apiKey: String,
     private val baseUrl: String = "https://api.anthropic.com/v1",
-    private val model: String = "claude-haiku-4-5-20250514"
+    private val model: String = ClaudeModelAliases.SCANNER_SONNET
 ) {
 
     private val httpClient = HttpClient {

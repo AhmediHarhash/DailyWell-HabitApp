@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.sp
+import com.dailywell.app.core.theme.AccentIndigo
+import com.dailywell.app.core.theme.AccentSky
 import com.dailywell.app.data.model.*
 import com.dailywell.app.ui.components.*
 import kotlinx.coroutines.launch
@@ -80,7 +82,7 @@ fun NutritionScreen(
                         // Premium badge (optional)
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = AccentSky.copy(alpha = 0.18f),
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
                             Row(
@@ -92,13 +94,13 @@ fun NutritionScreen(
                                     imageVector = DailyWellIcons.Gamification.Crown,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    tint = AccentIndigo
                                 )
                                 Text(
                                     "Premium",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = AccentIndigo
                                 )
                             }
                         }
@@ -172,7 +174,7 @@ private fun EmptyNutritionState(
                 imageVector = DailyWellIcons.Health.Nutrition,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                tint = AccentSky.copy(alpha = 0.6f)
             )
         }
 
@@ -394,8 +396,8 @@ fun CalorieCard(consumed: Int, goal: Int) {
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primaryContainer
+                color = AccentSky,
+                trackColor = AccentSky.copy(alpha = 0.22f)
             )
 
             Spacer(Modifier.height(8.dp))
@@ -754,7 +756,7 @@ fun QuickActionsSection(
                     .fillMaxWidth()
                     .background(
                         Brush.horizontalGradient(
-                            colors = listOf(Color(0xFF00C853), Color(0xFF00E676))
+                            colors = listOf(AccentSky, AccentIndigo)
                         )
                     )
                     .padding(16.dp)
@@ -815,7 +817,7 @@ fun QuickActionButton(
                     imageVector = iconVector,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = AccentSky
                 )
                 Text(
                     text,
@@ -855,7 +857,7 @@ fun MealCard(meal: MealEntry) {
                 Text(
                     "${meal.totalCalories} Cal",
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = AccentSky
                 )
             }
 

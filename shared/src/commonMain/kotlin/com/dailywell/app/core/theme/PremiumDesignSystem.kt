@@ -93,49 +93,49 @@ object PremiumDesignTokens {
     val neutralMuted = Color(0xFF4F635C)
 
     val headerGradient = listOf(
-        Color(0xFF486C66),
-        Color(0xFF537A72),
-        Color(0xFF3F6E8A)
+        Color(0xFF3F6E86),
+        Color(0xFF4A83A8),
+        Color(0xFF5F74B1)
     )
     val headerBorder = Color(0x22FFFFFF)
     val headerIconBackdrop = Color(0xFFFFFFFF).copy(alpha = 0.22f)
     val headerTitleText = Color(0xFFF5F8F7)
 
     val heroCardGradient = listOf(
-        Color(0xFFDCEEE8),
-        Color(0xFFE0F0F6),
-        Color(0xFFDFE8FA)
+        Color(0xFFE3F0FA),
+        Color(0xFFE8EEFC),
+        Color(0xFFEDEAFE)
     )
     val heroCardOverlay = listOf(
-        Color(0xFF7CD1B8).copy(alpha = 0.2f),
-        Color(0xFFB5D8E7).copy(alpha = 0.12f)
+        AccentSky.copy(alpha = 0.18f),
+        AccentIndigo.copy(alpha = 0.12f)
     )
 
     val sectionChipGradient = listOf(
-        Color(0xFFE8F0EC),
-        Color(0xFFDFECE7),
-        Color(0xFFD8E7F3)
+        Color(0xFFE7F1FB),
+        Color(0xFFE8EEFB),
+        Color(0xFFEDE9FB)
     )
-    val sectionChipBorder = Color(0x336A746F)
-    val sectionChipText = Color(0xFF2D3F3A)
+    val sectionChipBorder = Color(0x33516A86)
+    val sectionChipText = Color(0xFF2C3C53)
 
     // Shared gradients for action tiles and CTAs.
     val actionTileGradients = listOf(
-        listOf(Color(0xFF4F7E74), Color(0xFF6C9D90)),
-        listOf(Color(0xFF4E6F8D), Color(0xFF6E8FAF)),
-        listOf(Color(0xFF6C5F8E), Color(0xFF8C7AAF)),
-        listOf(Color(0xFF7A6E58), Color(0xFF9D8E75))
+        listOf(AccentSky, AccentIndigo),
+        listOf(AccentIndigo, AccentViolet),
+        listOf(AccentSky, AccentViolet),
+        listOf(AccentAmber, AccentRose)
     )
 
     val ctaGradient = listOf(
-        Color(0xFF4E7B72),
-        Color(0xFF5D8A80),
-        Color(0xFF3F6E86)
+        AccentSky,
+        AccentIndigo,
+        AccentViolet
     )
 
     val progressGradient = listOf(
-        Color(0xFF5A8F82),
-        Color(0xFF6EA89A)
+        AccentSky,
+        AccentIndigo
     )
 
     val insightsFeaturePalettes = listOf(
@@ -144,7 +144,7 @@ object PremiumDesignTokens {
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
-            background = listOf(AccentSky, AccentEmerald),
+            background = listOf(AccentSky, AccentIndigo),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
@@ -159,23 +159,23 @@ object PremiumDesignTokens {
 
     val trackFeaturePalettes = listOf(
         PremiumPalette(
-            background = listOf(AccentEmerald, AccentSky),
+            background = listOf(AccentSky, AccentIndigo),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
-            background = listOf(AccentSky, PrimaryLight),
+            background = listOf(AccentSky, AccentViolet),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
-            background = listOf(AccentAmber, Primary),
+            background = listOf(AccentAmber, AccentIndigo),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
-            background = listOf(PrimaryLight, Success),
+            background = listOf(AccentIndigo, AccentViolet),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
-            background = listOf(AccentSky, Secondary),
+            background = listOf(AccentSky, AccentViolet),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
@@ -186,15 +186,15 @@ object PremiumDesignTokens {
 
     val trackQuickActionPalettes = listOf(
         PremiumPalette(
-            background = listOf(AccentEmerald, AccentSky),
+            background = listOf(AccentSky, AccentIndigo),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
-            background = listOf(AccentSky, Secondary),
+            background = listOf(AccentSky, AccentViolet),
             iconColor = Color(0xFFFFFFFF)
         ),
         PremiumPalette(
-            background = listOf(Secondary, AccentAmber),
+            background = listOf(AccentIndigo, AccentAmber),
             iconColor = Color(0xFFFFFFFF)
         )
     )

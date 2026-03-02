@@ -360,9 +360,9 @@ class AIFeaturePersistence(
         aiUsageDao.incrementFreeMessage(usage.usageId)
     }
 
-    suspend fun incrementSLMMessage(userId: String, planType: AIPlanType) {
+    suspend fun incrementFallbackMessage(userId: String, planType: AIPlanType) {
         val usage = getOrCreateCurrentUsage(userId, planType)
-        aiUsageDao.incrementSLMMessage(usage.usageId)
+        aiUsageDao.incrementFallbackMessage(usage.usageId)
     }
 
     suspend fun incrementAIMessage(userId: String, planType: AIPlanType, tokens: Int, cost: Float) {
@@ -384,7 +384,7 @@ class AIFeaturePersistence(
     ) {
         val now = Clock.System.now().toEpochMilliseconds()
         val cost = when (model) {
-            AIModelUsed.DECISION_TREE, AIModelUsed.QWEN_0_5B -> 0f
+            AIModelUsed.DECISION_TREE -> 0f
             AIModelUsed.CLAUDE_HAIKU -> (inputTokens * 1.0f + outputTokens * 5.0f) / 1_000_000
             AIModelUsed.CLAUDE_SONNET -> (inputTokens * 3.0f + outputTokens * 15.0f) / 1_000_000
             AIModelUsed.CLAUDE_OPUS -> (inputTokens * 15.0f + outputTokens * 75.0f) / 1_000_000
@@ -473,9 +473,6 @@ private fun ScheduledReportEntity.toScheduledReport(): AIRoutingEngine.OpusSched
 }
 
 private fun parseAIModelUsed(raw: String): AIModelUsed {
-    return when (raw) {
-        "GEMMA_3N" -> AIModelUsed.QWEN_0_5B
-        else -> runCatching { AIModelUsed.valueOf(raw) }.getOrDefault(AIModelUsed.DECISION_TREE)
-    }
+    return runCatching { AIModelUsed.valueOf(raw) }.getOrDefault(AIModelUsed.DECISION_TREE)
 }
 

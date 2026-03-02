@@ -337,7 +337,7 @@ object DecisionTreeResponses {
 
     /**
      * Get a general coaching response (FREE)
-     * Used as fallback when SLM is not available
+     * Used as fallback when cloud coach is not available
      */
     fun getCoachingResponse(message: String): String {
         val normalizedMessage = message.lowercase()

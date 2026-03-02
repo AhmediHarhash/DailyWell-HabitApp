@@ -1,12 +1,5 @@
 ﻿package com.dailywell.app.di
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import com.dailywell.app.ai.ModelDownloadManager
-import com.dailywell.app.ai.SLMDownloadInfo
-import com.dailywell.app.ai.SLMService
-import com.dailywell.app.ai.UserProfileBuilder
 import com.dailywell.app.api.ClaudeApiClient
 import com.dailywell.app.tts.PiperTtsService
 import com.dailywell.app.api.FirebaseService
@@ -107,27 +100,6 @@ val appModule = module {
     // Speech Recognition Service (Voice Input for AI Chat)
     single<SpeechRecognitionService> { SpeechRecognitionServiceImpl(androidContext()) }
 
-    // SLM Model Download Manager (background model download from Firebase Storage)
-    single { ModelDownloadManager(androidContext(), get()) }
-    single<SLMDownloadInfo> { get<ModelDownloadManager>() }
-
-    // User Profile Builder (SLM personalization â€” learns from user behavior)
-    single { UserProfileBuilder(get<SettingsRepository>(), get<HabitRepository>(), get<EntryRepository>(), get()) }
-
-    // On-device SLM: Qwen 0.5B only via Llamatik llama.cpp (FREE, offline)
-    single {
-        val slm = SLMService(androidContext(), get<ModelDownloadManager>(), get<UserProfileBuilder>())
-        // Wire: when model download finishes, proactively init SLM so it's instant for user
-        get<ModelDownloadManager>().onModelReady = {
-            CoroutineScope(Dispatchers.IO).launch { slm.initialize() }
-        }
-        // Also try init now if model is already on disk (app restart after prior download)
-        CoroutineScope(Dispatchers.IO).launch {
-            if (slm.isModelAvailable()) slm.initialize()
-        }
-        slm
-    }
-
     // Food Scanning - Open Food Facts (FREE API)
     single { OpenFoodFactsClient() }
 
@@ -156,9 +128,7 @@ val appModule = module {
             habitRepository = get<HabitRepository>(),
             entryRepository = get<EntryRepository>(),
             aiFeaturePersistence = get(),  // Persistence for all 5 AI features
-            slmService = get<SLMService>(),  // On-device Qwen 0.5B
-            settingsRepository = get<SettingsRepository>(),
-            modelDownloadManager = get<ModelDownloadManager>()  // Cloud rate limiter when no SLM
+            settingsRepository = get<SettingsRepository>()
         )
     }
 
@@ -203,7 +173,7 @@ val appModule = module {
     single {
         com.dailywell.app.api.ClaudeFoodVisionApi(
             apiKey = com.dailywell.app.api.ApiConfig.CLAUDE_API_KEY,
-            model = com.dailywell.app.api.ApiConfig.CLAUDE_MODEL
+            model = com.dailywell.app.api.ApiConfig.CLAUDE_SCANNER_MODEL
         )
     }
     single { NutritionRepository(get(), get<SettingsRepository>(), get<AICoachingRepository>()) }
@@ -230,8 +200,8 @@ val appModule = module {
 
     // ViewModels
     // TodayViewModel: HabitRepo, EntryRepo, SettingsRepo, AchievementRepo, RewardRepo,
-    //                 DailyInsightsRepo, MicroChallengeRepo, HabitStackRepo, HealthConnectRepo, IntentionRepo, RecoveryRepo, SmartReminderRepo, AudioCoachingRepo, AICoachingRepo, GamificationRepo, SLMDownloadInfo
-    viewModel { TodayViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get<SLMDownloadInfo>()) }
+    //                 DailyInsightsRepo, MicroChallengeRepo, HabitStackRepo, HealthConnectRepo, IntentionRepo, RecoveryRepo, SmartReminderRepo, AudioCoachingRepo, AICoachingRepo, GamificationRepo
+    viewModel { TodayViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { WeekViewModel(get(), get()) }
     viewModel { OnboardingViewModel(get(), get(), get<AICoachingRepository>()) }
     viewModel { InsightsViewModel(get(), get(), get(), get()) }
@@ -259,7 +229,7 @@ val appModule = module {
 
     // Phase 4 ViewModels
     viewModel { BiometricViewModel(get()) }
-    viewModel { AICoachingViewModel(get(), get<SpeechRecognitionService>(), get<SLMDownloadInfo>()) }
+    viewModel { AICoachingViewModel(get(), get<SpeechRecognitionService>()) }
 
     // Phase 5 ViewModels - Gamification & Rewards
     viewModel { RewardStoreViewModel(get(), get()) }

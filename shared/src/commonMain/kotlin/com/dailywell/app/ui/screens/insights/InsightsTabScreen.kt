@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dailywell.app.core.theme.AccentIndigo
+import com.dailywell.app.core.theme.AccentSky
 import com.dailywell.app.core.theme.PremiumDesignTokens
 import com.dailywell.app.core.theme.PremiumPalette
 import com.dailywell.app.data.model.TodayViewMode
@@ -66,15 +68,13 @@ fun InsightsTabScreen(
     val useDarkHeroPalette = colorScheme.surface.luminance() < 0.45f
     val heroGradient = remember(
         useDarkHeroPalette,
-        colorScheme.surfaceVariant,
-        colorScheme.primary,
-        colorScheme.secondary
+        colorScheme.surfaceVariant
     ) {
         if (useDarkHeroPalette) {
             listOf(
                 colorScheme.surfaceVariant.copy(alpha = 0.94f),
-                colorScheme.primary.copy(alpha = 0.32f),
-                colorScheme.secondary.copy(alpha = 0.24f)
+                AccentSky.copy(alpha = 0.32f),
+                AccentIndigo.copy(alpha = 0.24f)
             )
         } else {
             PremiumDesignTokens.heroCardGradient
@@ -195,7 +195,7 @@ fun InsightsTabScreen(
                                                 text = "Open full insight board",
                                                 style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = AccentSky
                                             )
                                             Icon(
                                                 imageVector = if (effectivePremium) {
@@ -205,7 +205,7 @@ fun InsightsTabScreen(
                                                 },
                                                 contentDescription = null,
                                                 modifier = Modifier.size(20.dp),
-                                                tint = MaterialTheme.colorScheme.primary
+                                                tint = AccentSky
                                             )
                                         }
                                     }
@@ -288,7 +288,7 @@ fun InsightsTabScreen(
                                                 Icon(
                                                     imageVector = DailyWellIcons.Status.Lock,
                                                     contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary
+                                                    tint = AccentSky
                                                 )
                                             }
                                         }
@@ -345,7 +345,7 @@ private fun InsightsMomentumHero(
             )
             GlassProgressBar(
                 progress = cappedProgress,
-                progressColor = MaterialTheme.colorScheme.primary
+                progressColor = AccentSky
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -402,7 +402,7 @@ private fun QuickStatItem(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = AccentSky
         )
         Text(
             text = label,
@@ -437,7 +437,7 @@ private fun SimpleInsightsHintCard() {
             Text(
                 text = "Switch to Full mode from Today to access AI Insights, Calendar, and At-Risk tools.",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = AccentSky
             )
         }
     }

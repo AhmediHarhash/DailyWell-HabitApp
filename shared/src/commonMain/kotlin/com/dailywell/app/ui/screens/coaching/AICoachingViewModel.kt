@@ -2,8 +2,6 @@ package com.dailywell.app.ui.screens.coaching
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dailywell.app.ai.SLMDownloadInfo
-import com.dailywell.app.ai.SLMDownloadProgress
 import com.dailywell.app.data.model.*
 import com.dailywell.app.data.repository.AICoachingRepository
 import com.dailywell.app.speech.SpeechRecognitionService
@@ -39,8 +37,7 @@ data class AICoachingUiState(
     val aiCreditsPercent: Float = 100f,
     val canUseAI: Boolean = true,
     val aiLimitMessage: String? = null,
-    val showUpgradePrompt: Boolean = false,
-    val slmDownloadProgress: SLMDownloadProgress = SLMDownloadProgress.Dismissed
+    val showUpgradePrompt: Boolean = false
 )
 
 /**
@@ -48,8 +45,7 @@ data class AICoachingUiState(
  */
 class AICoachingViewModel(
     private val coachingRepository: AICoachingRepository,
-    private val speechService: SpeechRecognitionService? = null,
-    private val slmDownloadInfo: SLMDownloadInfo? = null
+    private val speechService: SpeechRecognitionService? = null
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AICoachingUiState())
     val uiState: StateFlow<AICoachingUiState> = _uiState.asStateFlow()
@@ -69,16 +65,6 @@ class AICoachingViewModel(
     init {
         loadCoachingData()
         observeSpeechResults()
-        observeSLMDownload()
-    }
-
-    private fun observeSLMDownload() {
-        val downloadInfo = slmDownloadInfo ?: return
-        viewModelScope.launch {
-            downloadInfo.downloadProgress.collect { progress ->
-                _uiState.value = _uiState.value.copy(slmDownloadProgress = progress)
-            }
-        }
     }
 
     private fun observeSpeechResults() {
@@ -459,14 +445,6 @@ class AICoachingViewModel(
                 aiLimitMessage = if (!result.canUseAI) result.reason?.userMessage else null
             )
         }
-    }
-
-    fun startSLMDownload() {
-        slmDownloadInfo?.startDownload()
-    }
-
-    fun dismissSLMDownloadCard() {
-        slmDownloadInfo?.dismissDownloadCard()
     }
 
     /**

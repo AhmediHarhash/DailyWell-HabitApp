@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.dailywell.app.core.theme.AccentSky
 import com.dailywell.app.core.theme.PremiumDesignTokens
 import com.dailywell.app.core.theme.PremiumPalette
 import com.dailywell.app.data.model.TodayViewMode
@@ -244,7 +245,7 @@ private fun SimpleModeHintCard() {
             Text(
                 text = "Switch to Full mode from Today for workouts, body metrics, and biometrics.",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = AccentSky
             )
         }
     }
@@ -293,7 +294,7 @@ private fun TrackHealthHubHero(
             )
             GlassProgressBar(
                 progress = unlockedRatio,
-                progressColor = MaterialTheme.colorScheme.primary
+                progressColor = AccentSky
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -305,7 +306,7 @@ private fun TrackHealthHubHero(
                         imageVector = DailyWellIcons.Actions.CheckCircle,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = AccentSky
                     )
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(
@@ -402,7 +403,7 @@ private fun QuickActionButton(
                 Text(
                     text = "Premium",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = AccentSky
                 )
             }
         }

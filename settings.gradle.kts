@@ -31,4 +31,3 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 include(":shared")
-include(":slmModelPack")

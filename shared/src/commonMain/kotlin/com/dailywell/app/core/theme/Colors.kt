@@ -10,15 +10,15 @@ import androidx.compose.ui.graphics.Color
 
 // Primary - Sage Green (Growth, Balance, Renewal)
 // Shifted from stock Material green to a refined, muted sage
-val Primary = Color(0xFF5B8C6B)
-val PrimaryLight = Color(0xFF8BB89A)
-val PrimaryDark = Color(0xFF3D6B4F)
+val Primary = Color(0xFF4A9ED6)
+val PrimaryLight = Color(0xFF8BC9EB)
+val PrimaryDark = Color(0xFF2F6F99)
 val OnPrimary = Color.White
 
 // Secondary - Eucalyptus Teal (Calm, Trust, Serenity)
-val Secondary = Color(0xFF4A9E8F)
-val SecondaryLight = Color(0xFF7EC4B8)
-val SecondaryDark = Color(0xFF2E7A6D)
+val Secondary = Color(0xFF6366F1)
+val SecondaryLight = Color(0xFF9EA0FF)
+val SecondaryDark = Color(0xFF474ACF)
 val OnSecondary = Color.White
 
 // Background - Warm Cream/Off-white (not cold gray-white)
@@ -74,9 +74,9 @@ val DividerDark = Color(0xFF3A3836)
 // ============================================
 
 // WCAG Compliant High Contrast Text (4.5:1+ ratio)
-val TextOnPrimaryLight = Color(0xFF1C3D26)  // Deep sage on light green backgrounds
+val TextOnPrimaryLight = Color(0xFF173A52)  // Deep slate on light blue backgrounds
 val TextOnSuccessLight = Color(0xFF2A4D30)  // For SuccessLight backgrounds
-val HighContrastGreen = Color(0xFF1C3D26)   // For any light green surface
+val HighContrastGreen = Color(0xFF173A52)   // Legacy name kept for compatibility
 
 // Glassmorphism Colors - Warmer glass
 val GlassLightBackground = Color(0xFFFFFEFC).copy(alpha = 0.78f)
@@ -86,10 +86,10 @@ val GlassBorderDark = Color(0xFFFFFFFF).copy(alpha = 0.08f)
 val GlassHighlight = Color(0xFFFFFFFF).copy(alpha = 0.35f)
 
 // Glass Panel Variants - for layered glass UI (iOS 18 / Arc Browser style)
-val GlassPrimaryLight = Color(0xFF5B8C6B).copy(alpha = 0.08f)       // Primary-tinted glass
-val GlassPrimaryDark = Color(0xFF8BB89A).copy(alpha = 0.12f)
-val GlassSecondaryLight = Color(0xFF4A9E8F).copy(alpha = 0.06f)     // Secondary-tinted glass
-val GlassSecondaryDark = Color(0xFF7EC4B8).copy(alpha = 0.10f)
+val GlassPrimaryLight = Color(0xFF4A9ED6).copy(alpha = 0.08f)       // Primary-tinted glass
+val GlassPrimaryDark = Color(0xFF8BC9EB).copy(alpha = 0.12f)
+val GlassSecondaryLight = Color(0xFF6366F1).copy(alpha = 0.06f)     // Secondary-tinted glass
+val GlassSecondaryDark = Color(0xFF9EA0FF).copy(alpha = 0.10f)
 val GlassAccentLight = Color(0xFFE8A838).copy(alpha = 0.06f)        // Accent-tinted glass
 val GlassAccentDark = Color(0xFFE8C44A).copy(alpha = 0.10f)
 val GlassOverlayLight = Color(0xFFFFFFFF).copy(alpha = 0.60f)       // Heavy overlay for sheets
@@ -104,13 +104,13 @@ val GlassNavBarDark = Color(0xFF1E1D1B).copy(alpha = 0.90f)
 // Brand-connected: all rooted in sage green (#5B8C6B) family
 
 // Morning (5am-11am): Golden sage sunrise — energizing warmth
-val MorningGradientStart = Color(0xFF6B9E5E)   // Fresh leaf green
-val MorningGradientEnd = Color(0xFF8BAF5A)     // Golden sage
+val MorningGradientStart = Color(0xFF5AA8DE)
+val MorningGradientEnd = Color(0xFF7A95E8)
 val MorningAccent = Color(0xFFE8A848)          // Golden amber
 
 // Afternoon (12pm-5pm): Deep sage — grounded, productive
-val AfternoonGradientStart = Color(0xFF5B8C6B) // Core sage green (brand)
-val AfternoonGradientEnd = Color(0xFF4A8F7F)   // Sage teal
+val AfternoonGradientStart = Color(0xFF4A9ED6)
+val AfternoonGradientEnd = Color(0xFF5B7FD9)
 val AfternoonAccent = Color(0xFF4A9ED6)        // Gentle blue
 
 // Evening (6pm-9pm): Dusk sage — calming, reflective
@@ -132,7 +132,7 @@ val ShadowDarkMode = Color(0x3D000000)         // Dark mode shadow
 // Interactive States
 val PressedOverlay = Color(0x08201E1A)         // Subtle warm press feedback
 val HoverOverlay = Color(0x05201E1A)           // Hover state
-val FocusRing = Color(0xFF8BB89A)              // Sage focus indicator
+val FocusRing = Color(0xFF8BC9EB)              // Blue focus indicator
 
 // Motivation Colors (Psychology: goal achievement)
 val MotivationOrange = Color(0xFFE8825A)       // Warm terracotta CTA

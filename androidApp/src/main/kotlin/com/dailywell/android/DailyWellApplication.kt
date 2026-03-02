@@ -3,20 +3,13 @@ package com.dailywell.android
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.util.Log
-import com.dailywell.app.ai.SLMService
 import com.dailywell.app.di.appModule
 import com.dailywell.app.notification.CalendarNotificationWorker
 import com.dailywell.app.notification.ProactiveNotificationManager
 import com.dailywell.app.worker.AIFeatureWorkScheduler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
-import org.koin.java.KoinJavaComponent.getKoin
 
 class DailyWellApplication : Application() {
 
@@ -41,28 +34,6 @@ class DailyWellApplication : Application() {
 
         // Schedule periodic calendar sync (free-slot notifications, habit scheduling)
         CalendarNotificationWorker.schedulePeriodicSync(this)
-
-        // Initialize on-device SLM (Qwen2.5 0.5B) in background
-        // Non-blocking — app works fine with pattern fallback while model loads
-        initializeSLM()
-    }
-
-    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    private fun initializeSLM() {
-        applicationScope.launch {
-            try {
-                val slmService: SLMService = getKoin().get()
-                val initialized = slmService.initialize()
-                if (initialized) {
-                    Log.d("DailyWellApp", "SLM (Qwen2.5 0.5B) initialized successfully")
-                } else {
-                    Log.d("DailyWellApp", "SLM model not available — using pattern fallback")
-                }
-            } catch (e: Exception) {
-                Log.w("DailyWellApp", "SLM initialization failed (pattern fallback active)", e)
-            }
-        }
     }
 
     private fun createNotificationChannel() {

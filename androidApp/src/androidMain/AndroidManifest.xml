@@ -110,7 +110,7 @@
             android:name="health_permissions"
             android:resource="@array/health_permissions" />
 
-        <!-- FileProvider for SLM model loading (llama.cpp needs content:// URI) -->
+        <!-- FileProvider for sharing exported files -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

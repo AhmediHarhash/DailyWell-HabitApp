@@ -28,7 +28,7 @@ import kotlinx.serialization.json.Json
  * - Member 1 (20%): $1.67/month (soft $1.50, hard $1.67)
  * - Member 2 (20%): $1.67/month (soft $1.50, hard $1.67)
  *
- * After hard cap â†’ SLM-only until next month refresh (1st of each month)
+ * After hard cap -> fallback-safe cloud mode until next month refresh (1st of each month)
  */
 class FamilyUsageManager(
     private val dataStoreManager: DataStoreManager,
@@ -142,7 +142,7 @@ class FamilyUsageManager(
             tokensUsed = usage.tokensUsed + inputTokens + outputTokens,
             messagesCount = usage.messagesCount + 1,
             cloudMessagesCount = if (!model.isFree) usage.cloudMessagesCount + 1 else usage.cloudMessagesCount,
-            slmMessagesCount = if (model == AIModelUsed.QWEN_0_5B) usage.slmMessagesCount + 1 else usage.slmMessagesCount,
+            fallbackMessagesCount = usage.fallbackMessagesCount,
             freeMessagesCount = if (model == AIModelUsed.DECISION_TREE) usage.freeMessagesCount + 1 else usage.freeMessagesCount,
             lastUpdated = Clock.System.now().toString()
         )
@@ -154,9 +154,9 @@ class FamilyUsageManager(
     }
 
     /**
-     * Check if user should use SLM (hard cap reached)
+     * Check if user reached hard cap.
      */
-    suspend fun shouldUseSLM(): Boolean {
+    suspend fun isAtHardCap(): Boolean {
         val usage = getMemberUsage().first() ?: return false
         val limits = getBudgetLimits()
         return usage.currentMonthCostUsd >= limits.hardCapUsd
@@ -197,12 +197,12 @@ class FamilyUsageManager(
             percentUsed = percentUsed,
             remainingUsd = getRemainingBudget(),
             isAtSoftCap = isApproachingLimit(),
-            isAtHardCap = shouldUseSLM(),
+            isAtHardCap = isAtHardCap(),
             role = limits.role,
             resetDate = usage.resetDate,
             messagesCount = usage.messagesCount,
             cloudMessagesCount = usage.cloudMessagesCount,
-            slmMessagesCount = usage.slmMessagesCount,
+            fallbackMessagesCount = usage.fallbackMessagesCount,
             freeMessagesCount = usage.freeMessagesCount
         )
     }
@@ -267,7 +267,7 @@ class FamilyUsageManager(
             tokensUsed = 0,
             messagesCount = 0,
             cloudMessagesCount = 0,
-            slmMessagesCount = 0,
+            fallbackMessagesCount = 0,
             freeMessagesCount = 0,
             resetDate = nextMonth.toString(),
             lastUpdated = Clock.System.now().toString()
@@ -333,7 +333,7 @@ data class FamilyMemberUsage(
     val tokensUsed: Int = 0,
     val messagesCount: Int = 0,
     val cloudMessagesCount: Int = 0,
-    val slmMessagesCount: Int = 0,
+    val fallbackMessagesCount: Int = 0,
     val freeMessagesCount: Int = 0,
     val resetDate: String,
     val lastUpdated: String
@@ -353,12 +353,12 @@ data class FamilyUsageStatus(
     val resetDate: String,
     val messagesCount: Int,
     val cloudMessagesCount: Int,
-    val slmMessagesCount: Int,
+    val fallbackMessagesCount: Int,
     val freeMessagesCount: Int
 ) {
     val statusMessage: String
         get() = when {
-            isAtHardCap -> "Using on-device AI until $resetDate"
+            isAtHardCap -> "Using cost-safe coach mode until $resetDate"
             isAtSoftCap -> "Approaching limit - $${"%.2f".format(remainingUsd)} remaining"
             else -> "$${"%.2f".format(remainingUsd)} of $${"%.2f".format(budgetUsd)} remaining"
         }

@@ -209,8 +209,8 @@ interface AIUsageDao {
     @Query("UPDATE ai_usage_tracking SET freeMessagesCount = freeMessagesCount + 1, messagesCount = messagesCount + 1, lastUpdated = :timestamp WHERE usageId = :usageId")
     suspend fun incrementFreeMessage(usageId: String, timestamp: Long = System.currentTimeMillis())
 
-    @Query("UPDATE ai_usage_tracking SET slmMessagesCount = slmMessagesCount + 1, messagesCount = messagesCount + 1, lastUpdated = :timestamp WHERE usageId = :usageId")
-    suspend fun incrementSLMMessage(usageId: String, timestamp: Long = System.currentTimeMillis())
+    @Query("UPDATE ai_usage_tracking SET fallbackMessagesCount = fallbackMessagesCount + 1, messagesCount = messagesCount + 1, lastUpdated = :timestamp WHERE usageId = :usageId")
+    suspend fun incrementFallbackMessage(usageId: String, timestamp: Long = System.currentTimeMillis())
 
     @Query("UPDATE ai_usage_tracking SET aiMessagesCount = aiMessagesCount + 1, tokensUsed = tokensUsed + :tokens, currentMonthCostUsd = currentMonthCostUsd + :cost, messagesCount = messagesCount + 1, lastUpdated = :timestamp WHERE usageId = :usageId")
     suspend fun incrementAIMessage(usageId: String, tokens: Int, cost: Float, timestamp: Long = System.currentTimeMillis())

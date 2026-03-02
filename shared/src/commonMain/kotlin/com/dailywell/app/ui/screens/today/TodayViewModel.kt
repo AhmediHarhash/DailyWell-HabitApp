@@ -41,8 +41,6 @@ import com.dailywell.app.data.model.AICoachingSession
 import com.dailywell.app.data.model.CoachingSessionType
 import com.dailywell.app.data.model.CoachingMessage
 import com.dailywell.app.data.model.CoachingActionItem
-import com.dailywell.app.ai.SLMDownloadInfo
-import com.dailywell.app.ai.SLMDownloadProgress
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -201,8 +199,6 @@ data class TodayUiState(
     // First-day tutorial overlay
     val isFirstDay: Boolean = false,
     val hasSeenTutorial: Boolean = false,
-    // SLM model download progress
-    val slmDownloadProgress: SLMDownloadProgress = SLMDownloadProgress.Dismissed,
     // Layout orchestration — single source of truth for what Today shows
     val layoutMode: TodayLayoutMode = TodayLayoutMode.FIRST_SESSION,
     val daysSinceOnboarding: Int = 0,
@@ -225,8 +221,7 @@ class TodayViewModel(
     private val smartReminderRepository: SmartReminderRepository,
     private val audioCoachingRepository: AudioCoachingRepository,
     private val aiCoachingRepository: AICoachingRepository,
-    private val gamificationRepository: GamificationRepository,
-    private val slmDownloadInfo: SLMDownloadInfo
+    private val gamificationRepository: GamificationRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TodayUiState())
@@ -297,7 +292,6 @@ class TodayViewModel(
         loadAICoachData()        // Task #15: AI Coach Variety System
         initializeGamificationSession() // Phase 5: login streak + XP reset
         loadWaterCount()         // Quick water logging from Today screen
-        observeSLMDownload()     // SLM model download progress
     }
 
     private fun initializeGamificationSession() {
@@ -337,7 +331,7 @@ class TodayViewModel(
 
             // Combine the 5 core flows into CoreFlowData (pure — no _uiState reads).
             // collect() merges atomically via prev.copy(), preserving all 40+ fields
-            // set by independent loaders (water, intentions, recovery, audio, AI coach, SLM, etc.)
+            // set by independent loaders (water, intentions, recovery, audio, AI coach, etc.)
             combine(
                 habitRepository.getEnabledHabits(),
                 entryRepository.getTodayEntry(),
@@ -2216,23 +2210,5 @@ class TodayViewModel(
      */
     fun refreshAICoachMessage() {
         generateContextualCoachMessage()
-    }
-
-    // --- SLM Model Download ---
-
-    private fun observeSLMDownload() {
-        viewModelScope.launch {
-            slmDownloadInfo.downloadProgress.collect { progress ->
-                _uiState.update { it.copy(slmDownloadProgress = progress) }
-            }
-        }
-    }
-
-    fun startSLMDownload() {
-        slmDownloadInfo.startDownload()
-    }
-
-    fun dismissSLMDownloadCard() {
-        slmDownloadInfo.dismissDownloadCard()
     }
 }

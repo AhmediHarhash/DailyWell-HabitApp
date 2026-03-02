@@ -21,7 +21,7 @@ data class OnboardingUiState(
     val reminderMinute: Int = 0,
     val isCompleting: Boolean = false,
     val allHabits: List<HabitType> = HabitType.entries.toList(),
-    val maxFreeHabits: Int = 12,
+    val maxFreeHabits: Int = 3,
     // Goal-based onboarding state
     val selectedGoal: OnboardingGoal? = null,
     val assessmentScore: Int = 3, // 1-5 scale, default middle
@@ -61,11 +61,16 @@ class OnboardingViewModel(
     fun selectGoal(goal: OnboardingGoal) {
         val recommendations = GoalHabitMapping.getRecommendations(goal)
         val primaryIds = GoalHabitMapping.getPrimaryHabitIds(goal)
+        val maxHabits = _uiState.value.maxFreeHabits
+        val seededSelection = (primaryIds + recommendations.map { it.habitType.id })
+            .distinct()
+            .take(maxHabits)
+            .toSet()
         _uiState.update {
             it.copy(
                 selectedGoal = goal,
                 recommendations = recommendations,
-                selectedHabitIds = primaryIds // Auto-select primary habits
+                selectedHabitIds = seededSelection
             )
         }
     }

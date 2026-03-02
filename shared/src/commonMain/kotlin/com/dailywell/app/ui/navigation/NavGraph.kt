@@ -1,8 +1,10 @@
 package com.dailywell.app.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -18,6 +20,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.dailywell.app.core.theme.AccentIndigo
+import com.dailywell.app.core.theme.AccentSky
 import com.dailywell.app.core.theme.LocalDailyWellColors
 import com.dailywell.app.core.theme.PremiumMotionTokens
 import androidx.compose.foundation.shape.CircleShape
@@ -216,6 +220,11 @@ fun MainNavigation(
     // Track whether we're in a feature screen for transitions
     val isInFeature = currentDestination is NavigationDestination.Feature
 
+    // Safety net: never trap users in feature screens even if that screen forgets to expose its own back action.
+    BackHandler(enabled = isInFeature) {
+        navigateBack()
+    }
+
     // Animated feature overlay - slides up over tab content
     AnimatedContent(
         targetState = currentDestination,
@@ -298,37 +307,46 @@ fun MainNavigation(
     ) { destination ->
         when (destination) {
             is NavigationDestination.Feature -> {
-                RenderFeatureScreen(
-                    screen = destination.screen,
-                    isPremium = isPremium,
-                    unlockedAchievementIds = unlockedAchievementIds,
-                    onBack = navigateBack,
-                    onNavigateToPaywall = onNavigateToPaywall,
-                    onOpenHealthConnectSettings = onOpenHealthConnectSettings,
-                    onInstallHealthConnect = onInstallHealthConnect,
-                    onTakeProgressPhoto = onTakeProgressPhoto,
-                    onNavigateToFeature = navigateToFeature,
-                    onShareStreak = onShareStreak,
-                    onShareCalendarTrackerImage = onShareCalendarTrackerImage,
-                    onExportCalendarTrackerPdf = onExportCalendarTrackerPdf,
-                    currentUserId = currentUserId,
-                    onSignIn = onSignIn,
-                    onSignUp = onSignUp,
-                    onGoogleSignIn = onGoogleSignIn,
-                    onForgotPassword = onForgotPassword,
-                    onSignOut = onSignOut,
-                    onDeleteAccount = onDeleteAccount,
-                    onChangePassword = onChangePassword,
-                    onUpdateDisplayName = onUpdateDisplayName,
-                    onAuthComplete = onAuthComplete,
-                    isSignedIn = isSignedIn,
-                    accountEmail = accountEmail,
-                    accountDisplayName = accountDisplayName,
-                    isEmailVerified = isEmailVerified,
-                    authProvider = authProvider,
-                    pendingCalendarOAuth = pendingCalendarOAuth,
-                    onCalendarOAuthConsumed = onCalendarOAuthConsumed
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    RenderFeatureScreen(
+                        screen = destination.screen,
+                        isPremium = isPremium,
+                        unlockedAchievementIds = unlockedAchievementIds,
+                        onBack = navigateBack,
+                        onNavigateToPaywall = onNavigateToPaywall,
+                        onOpenHealthConnectSettings = onOpenHealthConnectSettings,
+                        onInstallHealthConnect = onInstallHealthConnect,
+                        onTakeProgressPhoto = onTakeProgressPhoto,
+                        onNavigateToFeature = navigateToFeature,
+                        onShareStreak = onShareStreak,
+                        onShareCalendarTrackerImage = onShareCalendarTrackerImage,
+                        onExportCalendarTrackerPdf = onExportCalendarTrackerPdf,
+                        currentUserId = currentUserId,
+                        onSignIn = onSignIn,
+                        onSignUp = onSignUp,
+                        onGoogleSignIn = onGoogleSignIn,
+                        onForgotPassword = onForgotPassword,
+                        onSignOut = onSignOut,
+                        onDeleteAccount = onDeleteAccount,
+                        onChangePassword = onChangePassword,
+                        onUpdateDisplayName = onUpdateDisplayName,
+                        onAuthComplete = onAuthComplete,
+                        isSignedIn = isSignedIn,
+                        accountEmail = accountEmail,
+                        accountDisplayName = accountDisplayName,
+                        isEmailVerified = isEmailVerified,
+                        authProvider = authProvider,
+                        pendingCalendarOAuth = pendingCalendarOAuth,
+                        onCalendarOAuthConsumed = onCalendarOAuthConsumed
+                    )
+
+                    if (shouldShowGlobalFeatureBackButton(destination.screen)) {
+                        GlobalFeatureBackButton(
+                            onClick = navigateBack,
+                            modifier = Modifier.align(Alignment.TopStart)
+                        )
+                    }
+                }
             }
             else -> {
                 Scaffold(
@@ -411,6 +429,51 @@ fun MainNavigation(
                     }
                 }
             }
+        }
+    }
+}
+
+private fun shouldShowGlobalFeatureBackButton(screen: Screen): Boolean {
+    // Only render a global back control for screens that do not expose
+    // their own in-screen back/navigation action in the top bar.
+    return when (screen) {
+        Screen.Patterns,
+        Screen.Nutrition,
+        Screen.Onboarding -> true
+        else -> false
+    }
+}
+
+@Composable
+private fun GlobalFeatureBackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dailyWellColors = LocalDailyWellColors.current
+
+    Surface(
+        modifier = modifier
+            .statusBarsPadding()
+            .padding(start = 12.dp, top = 8.dp)
+            .size(42.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        color = dailyWellColors.surfaceElevated.copy(alpha = 0.9f),
+        border = BorderStroke(1.dp, dailyWellColors.glassBorder),
+        tonalElevation = 0.dp,
+        shadowElevation = 4.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = DailyWellIcons.Nav.Back,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -761,7 +824,11 @@ private fun CenterTrackFAB(
                 .size(56.dp)
                 .shadow(8.dp, CircleShape)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(AccentSky, AccentIndigo)
+                    )
+                )
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
@@ -777,7 +844,7 @@ private fun CenterTrackFAB(
             text = "Scan",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+            color = AccentSky,
             textAlign = TextAlign.Center,
             maxLines = 1
         )
@@ -814,7 +881,7 @@ private fun FloatingNavItem(
     // Animated tint color
     val tintColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary
+            AccentIndigo
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
         },
@@ -836,15 +903,20 @@ private fun FloatingNavItem(
         // Icon with animated indicator pill behind it
         Box(contentAlignment = Alignment.Center) {
             // Selection indicator pill
-            Box(
-                modifier = Modifier
-                    .size(width = 48.dp, height = 28.dp)
-                    .graphicsLayer { alpha = indicatorAlpha }
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                    )
-            )
+                Box(
+                    modifier = Modifier
+                        .size(width = 48.dp, height = 28.dp)
+                        .graphicsLayer { alpha = indicatorAlpha }
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    AccentSky.copy(alpha = 0.22f),
+                                    AccentIndigo.copy(alpha = 0.18f)
+                                )
+                            )
+                        )
+                )
 
             Icon(
                 imageVector = item.icon,

@@ -110,13 +110,6 @@ fun PersonalizedGreetingHeader(
         }
     }
     val greetingLine = if (normalizedName.isBlank()) "$greeting!" else "$greeting, $normalizedName!"
-    val brandGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF74D7FF),
-            Color(0xFF6EE7B7),
-            Color(0xFFD9B4FF)
-        )
-    )
 
     val settingsInteractionSource = remember { MutableInteractionSource() }
     val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
@@ -145,19 +138,6 @@ fun PersonalizedGreetingHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "DailyWell",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            brush = brandGradient,
-                            shadow = Shadow(
-                                color = Color(0xFF9F7EFF).copy(alpha = 0.45f),
-                                blurRadius = 10f,
-                                offset = Offset(0f, 2f)
-                            )
-                        ),
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,

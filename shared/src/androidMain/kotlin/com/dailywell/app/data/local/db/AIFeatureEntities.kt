@@ -109,7 +109,7 @@ data class UserAISettingsEntity(
     @PrimaryKey
     val userId: String,
     val preferredLanguage: String = "en",  // ISO language code
-    val slmEnabled: Boolean = true,
+    val fallbackModeEnabled: Boolean = true,
     val lastLanguageDetected: String? = null,
     val updatedAt: Long = System.currentTimeMillis()
 )
@@ -151,7 +151,7 @@ data class AIUsageEntity(
     val tokensUsed: Int = 0,
     val messagesCount: Int = 0,
     val freeMessagesCount: Int = 0,  // Decision tree
-    val slmMessagesCount: Int = 0,   // Qwen 0.5B
+    val fallbackMessagesCount: Int = 0,
     val aiMessagesCount: Int = 0,    // Claude API
     val currentMonthCostUsd: Float = 0f,
     val resetDate: String,  // ISO date when usage resets

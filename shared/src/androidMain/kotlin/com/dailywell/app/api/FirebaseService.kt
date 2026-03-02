@@ -2310,7 +2310,7 @@ class FirebaseService {
                 "tokensUsed" to usage.tokensUsed,
                 "messagesCount" to usage.messagesCount,
                 "cloudMessagesCount" to usage.cloudMessagesCount,
-                "slmMessagesCount" to usage.slmMessagesCount,
+                "fallbackMessagesCount" to usage.fallbackMessagesCount,
                 "freeMessagesCount" to usage.freeMessagesCount,
                 "resetDate" to usage.resetDate,
                 "lastUpdated" to usage.lastUpdated
@@ -2349,7 +2349,7 @@ class FirebaseService {
                         tokensUsed = doc.getLong("tokensUsed")?.toInt() ?: 0,
                         messagesCount = doc.getLong("messagesCount")?.toInt() ?: 0,
                         cloudMessagesCount = doc.getLong("cloudMessagesCount")?.toInt() ?: 0,
-                        slmMessagesCount = doc.getLong("slmMessagesCount")?.toInt() ?: 0,
+                        fallbackMessagesCount = doc.getLong("fallbackMessagesCount")?.toInt() ?: 0,
                         freeMessagesCount = doc.getLong("freeMessagesCount")?.toInt() ?: 0,
                         resetDate = doc.getString("resetDate") ?: "",
                         lastUpdated = doc.getString("lastUpdated") ?: ""
@@ -2384,7 +2384,7 @@ class FirebaseService {
                 tokensUsed = doc.getLong("tokensUsed")?.toInt() ?: 0,
                 messagesCount = doc.getLong("messagesCount")?.toInt() ?: 0,
                 cloudMessagesCount = doc.getLong("cloudMessagesCount")?.toInt() ?: 0,
-                slmMessagesCount = doc.getLong("slmMessagesCount")?.toInt() ?: 0,
+                fallbackMessagesCount = doc.getLong("fallbackMessagesCount")?.toInt() ?: 0,
                 freeMessagesCount = doc.getLong("freeMessagesCount")?.toInt() ?: 0,
                 resetDate = doc.getString("resetDate") ?: "",
                 lastUpdated = doc.getString("lastUpdated") ?: ""
@@ -2411,7 +2411,7 @@ class FirebaseService {
                     "tokensUsed" to 0,
                     "messagesCount" to 0,
                     "cloudMessagesCount" to 0,
-                    "slmMessagesCount" to 0,
+                    "fallbackMessagesCount" to 0,
                     "freeMessagesCount" to 0,
                     "resetDate" to newResetDate,
                     "lastUpdated" to Clock.System.now().toString()

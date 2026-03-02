@@ -19,13 +19,12 @@ import kotlinx.datetime.todayIn
  * 1. NEVER route to cloud unless: Premium + Qualifies + Budget + Permit
  * 2. Keep cloud outputs SHORT (3-6 bullets max)
  * 3. Opus = PERMIT REQUIRED (weekly/monthly reports ONLY)
- * 4. Always fallback: Sonnet -> Haiku -> SLM (Qwen2.5) -> Guardrail
+ * 4. Always fallback: Sonnet -> Haiku -> Guardrail
  * 5. Health safety: Never give medical advice
  * ------------------------------------------------------------------
  *
  * ROUTING HIERARCHY:
  * - Guardrails (Decision Tree): 60-80% of requests - FREE, instant
- * - Qwen2.5 0.5B (SLM): Light coaching, simple explanations - FREE (llama.cpp)
  * - Claude Haiku: Short personalization, single-signal - $1/$5 MTok
  * - Claude Sonnet: Multi-signal reasoning, insights - $3/$15 MTok
  * - Claude Opus: Weekly/monthly reports ONLY (permit required) - $15/$75 MTok
@@ -40,7 +39,7 @@ object AIRoutingEngine {
         // GUARDRAIL-ONLY (never cloud)
         GREETING, STREAK_PRAISE, BASIC_REMINDER, FAQ, ONBOARDING_NUDGE,
 
-        // SLM-ELIGIBLE (free, on-device Qwen2.5 0.5B)
+        // QUICK COACHING (Haiku-eligible)
         SIMPLE_COACHING, SIMPLE_EXPLANATION, MICRO_TIP, REFRAME,
 
         // HAIKU-ELIGIBLE (cloud, cheap)
@@ -116,12 +115,12 @@ object AIRoutingEngine {
             else RequestIntent.PERSONALIZED_TIP
         }
 
-        // SLM-ELIGIBLE
-        val slmPatterns = listOf(
+        // QUICK COACHING
+        val quickCoachPatterns = listOf(
             "tip", "advice", "help me", "how to", "what is", "motivate",
             "encourage", "feeling", "tired", "stressed"
         )
-        if (slmPatterns.any { lower.contains(it) } || wordCount <= 10) {
+        if (quickCoachPatterns.any { lower.contains(it) } || wordCount <= 10) {
             return if (lower.contains("what is")) RequestIntent.SIMPLE_EXPLANATION
             else if (lower.contains("tip") || lower.contains("advice")) RequestIntent.MICRO_TIP
             else RequestIntent.SIMPLE_COACHING
@@ -273,7 +272,7 @@ object AIRoutingEngine {
 
         // VALUE SCORING (Will cloud actually help?)
         val valueIntent = when (intent) {
-            // Low value - SLM/templates are just as good
+            // Low value - template/Haiku responses are usually enough
             RequestIntent.GREETING, RequestIntent.STREAK_PRAISE,
             RequestIntent.BASIC_REMINDER, RequestIntent.SIMPLE_COACHING,
             RequestIntent.MICRO_TIP, RequestIntent.REFRAME -> 0.1f
@@ -304,7 +303,7 @@ object AIRoutingEngine {
             factors.add("high-value-keywords")
         }
 
-        // Value reduction for generic encouragement (SLM is fine)
+        // Value reduction for generic encouragement (Haiku is sufficient)
         val lowValueKeywords = listOf("motivate me", "encourage", "cheer", "support", "help me feel")
         if (lowValueKeywords.any { lower.contains(it) }) {
             value = (value - 0.3f).coerceAtLeast(0f)
@@ -313,9 +312,9 @@ object AIRoutingEngine {
 
         // Determine model based on BOTH scores
         val recommended = when {
-            value < 0.25f -> AIModelUsed.QWEN_0_5B  // Low value = local
+            value < 0.25f -> AIModelUsed.CLAUDE_HAIKU
             complexity < 0.2f -> AIModelUsed.DECISION_TREE
-            complexity < 0.35f -> AIModelUsed.QWEN_0_5B
+            complexity < 0.35f -> AIModelUsed.CLAUDE_HAIKU
             complexity < 0.55f -> AIModelUsed.CLAUDE_HAIKU
             complexity < 0.8f -> AIModelUsed.CLAUDE_SONNET
             else -> AIModelUsed.CLAUDE_OPUS
@@ -331,7 +330,7 @@ object AIRoutingEngine {
     enum class BudgetMode {
         NORMAL,      // Full access
         LEAN,        // Haiku only, shorter outputs
-        ULTRA_LEAN   // SLM + templates only
+        ULTRA_LEAN   // Haiku + templates only
     }
 
     fun determineBudgetMode(
@@ -673,7 +672,7 @@ object AIRoutingEngine {
     }
 
     // =========================================================================
-    // CIRCUIT BREAKER (with Direct Sonnet->SLM in Degraded)
+    // CIRCUIT BREAKER
     // =========================================================================
 
     data class CircuitBreakerState(
@@ -685,9 +684,8 @@ object AIRoutingEngine {
 
     enum class DegradedMode {
         NONE,           // Normal
-        SONNET_TO_SLM, // Skip Haiku, go direct to SLM (saves cost)
+        SONNET_TO_HAIKU, // Degrade Sonnet requests to Haiku
         HAIKU_ONLY,     // Disable Sonnet, Opus
-        SLM_ONLY,       // Disable all cloud
         TEMPLATES_ONLY  // Emergency
     }
 
@@ -705,8 +703,8 @@ object AIRoutingEngine {
                 circuitBreaker.isOpen = true
                 circuitBreaker.degradedMode = when (model) {
                     AIModelUsed.CLAUDE_OPUS -> DegradedMode.HAIKU_ONLY
-                    AIModelUsed.CLAUDE_SONNET -> DegradedMode.SONNET_TO_SLM
-                    AIModelUsed.CLAUDE_HAIKU -> DegradedMode.SLM_ONLY
+                    AIModelUsed.CLAUDE_SONNET -> DegradedMode.SONNET_TO_HAIKU
+                    AIModelUsed.CLAUDE_HAIKU -> DegradedMode.HAIKU_ONLY
                     else -> DegradedMode.TEMPLATES_ONLY
                 }
             }
@@ -729,19 +727,13 @@ object AIRoutingEngine {
 
         return when (circuitBreaker.degradedMode) {
             DegradedMode.NONE -> true
-            DegradedMode.SONNET_TO_SLM -> model in listOf(
+            DegradedMode.SONNET_TO_HAIKU -> model in listOf(
                 AIModelUsed.DECISION_TREE,
-                AIModelUsed.QWEN_0_5B,
                 AIModelUsed.CLAUDE_HAIKU
             )
             DegradedMode.HAIKU_ONLY -> model in listOf(
                 AIModelUsed.DECISION_TREE,
-                AIModelUsed.QWEN_0_5B,
                 AIModelUsed.CLAUDE_HAIKU
-            )
-            DegradedMode.SLM_ONLY -> model in listOf(
-                AIModelUsed.DECISION_TREE,
-                AIModelUsed.QWEN_0_5B
             )
             DegradedMode.TEMPLATES_ONLY -> model == AIModelUsed.DECISION_TREE
         }
@@ -754,27 +746,20 @@ object AIRoutingEngine {
             AIModelUsed.CLAUDE_OPUS -> {
                 chain.add(AIModelUsed.CLAUDE_SONNET)
                 if (budgetMode == BudgetMode.LEAN) {
-                    // Skip Haiku in lean mode - go direct to SLM
-                    chain.add(AIModelUsed.QWEN_0_5B)
+                    chain.add(AIModelUsed.CLAUDE_HAIKU)
                 } else {
                     chain.add(AIModelUsed.CLAUDE_HAIKU)
-                    chain.add(AIModelUsed.QWEN_0_5B)
                 }
             }
             AIModelUsed.CLAUDE_SONNET -> {
-                if (budgetMode == BudgetMode.LEAN || circuitBreaker.degradedMode == DegradedMode.SONNET_TO_SLM) {
-                    // Skip Haiku - direct to SLM (saves cost in degraded mode)
-                    chain.add(AIModelUsed.QWEN_0_5B)
+                if (budgetMode == BudgetMode.LEAN || circuitBreaker.degradedMode == DegradedMode.SONNET_TO_HAIKU) {
+                    chain.add(AIModelUsed.CLAUDE_HAIKU)
                 } else {
                     chain.add(AIModelUsed.CLAUDE_HAIKU)
-                    chain.add(AIModelUsed.QWEN_0_5B)
                 }
             }
             AIModelUsed.CLAUDE_HAIKU -> {
-                chain.add(AIModelUsed.QWEN_0_5B)
-            }
-            AIModelUsed.QWEN_0_5B -> {
-                // Already at SLM
+                // Already at lowest cloud tier
             }
             AIModelUsed.DECISION_TREE -> {
                 // Already at bottom
@@ -831,12 +816,6 @@ object AIRoutingEngine {
             |- Maximum 2 bullets
             |- One action only
             |- No questions
-        """.trimMargin()
-
-        model == AIModelUsed.QWEN_0_5B -> """
-            |Keep response under 3 sentences.
-            |Be supportive and practical.
-            |No medical advice.
         """.trimMargin()
 
         model == AIModelUsed.CLAUDE_HAIKU -> """
@@ -964,32 +943,33 @@ object AIRoutingEngine {
         // GUARDRAIL 1: Free tier = never cloud
         if (planType == AIPlanType.FREE) {
             val model = if (intentModel == AIModelUsed.DECISION_TREE)
-                AIModelUsed.DECISION_TREE else AIModelUsed.QWEN_0_5B
+                AIModelUsed.DECISION_TREE else AIModelUsed.CLAUDE_HAIKU
             return RoutingDecision(
                 model = model,
-                maxInputTokens = 500,
-                maxOutputTokens = 150,
+                maxInputTokens = TokenLimits.getMaxInput(model),
+                maxOutputTokens = TokenLimits.getMaxOutput(model, budgetMode),
                 intent = intent,
                 scores = scores,
                 budgetMode = budgetMode,
-                reason = "FREE tier: SLM only",
+                reason = "FREE tier: Haiku routing",
                 fallbackChain = listOf(AIModelUsed.DECISION_TREE),
                 promptContract = getPromptContract(model, budgetMode)
             )
         }
 
-        // GUARDRAIL 2: Ultra-lean = SLM only
+        // GUARDRAIL 2: Ultra-lean = Haiku only
         if (budgetMode == BudgetMode.ULTRA_LEAN) {
+            val model = AIModelUsed.CLAUDE_HAIKU
             return RoutingDecision(
-                model = AIModelUsed.QWEN_0_5B,
-                maxInputTokens = 500,
-                maxOutputTokens = 150,
+                model = model,
+                maxInputTokens = TokenLimits.getMaxInput(model),
+                maxOutputTokens = TokenLimits.getMaxOutput(model, budgetMode),
                 intent = intent,
                 scores = scores,
                 budgetMode = budgetMode,
-                reason = "Budget exhausted - using on-device AI",
+                reason = "Budget constrained - using Haiku",
                 fallbackChain = listOf(AIModelUsed.DECISION_TREE),
-                promptContract = getPromptContract(AIModelUsed.QWEN_0_5B, budgetMode)
+                promptContract = getPromptContract(model, budgetMode)
             )
         }
 
@@ -1029,25 +1009,26 @@ object AIRoutingEngine {
             }
         }
 
-        // GUARDRAIL 5: Low value = use SLM
+        // GUARDRAIL 5: Low value = use Haiku
         if (scores.value < 0.3f && intentModel != AIModelUsed.DECISION_TREE) {
+            val model = AIModelUsed.CLAUDE_HAIKU
             return RoutingDecision(
-                model = AIModelUsed.QWEN_0_5B,
-                maxInputTokens = 500,
-                maxOutputTokens = 150,
+                model = model,
+                maxInputTokens = TokenLimits.getMaxInput(model),
+                maxOutputTokens = TokenLimits.getMaxOutput(model, budgetMode),
                 intent = intent,
                 scores = scores,
                 budgetMode = budgetMode,
-                reason = "Low value score - SLM sufficient",
+                reason = "Low value score - Haiku is sufficient",
                 fallbackChain = listOf(AIModelUsed.DECISION_TREE),
-                promptContract = getPromptContract(AIModelUsed.QWEN_0_5B, budgetMode)
+                promptContract = getPromptContract(model, budgetMode)
             )
         }
 
         // GUARDRAIL 6: Circuit breaker
         if (!isModelAllowed(intentModel)) {
             val fallbackModel = buildFallbackChain(intentModel, budgetMode).firstOrNull()
-                ?: AIModelUsed.QWEN_0_5B
+                ?: AIModelUsed.CLAUDE_HAIKU
             return RoutingDecision(
                 model = fallbackModel,
                 maxInputTokens = TokenLimits.getMaxInput(fallbackModel),
@@ -1085,7 +1066,7 @@ object AIRoutingEngine {
 
             RequestIntent.SIMPLE_COACHING, RequestIntent.SIMPLE_EXPLANATION,
             RequestIntent.MICRO_TIP, RequestIntent.REFRAME, RequestIntent.UNKNOWN ->
-                AIModelUsed.QWEN_0_5B
+                AIModelUsed.CLAUDE_HAIKU
 
             RequestIntent.PERSONALIZED_TIP, RequestIntent.SUMMARY_REQUEST,
             RequestIntent.MEAL_IDEA, RequestIntent.WHY_EXPLANATION ->
@@ -1124,7 +1105,7 @@ object AIRoutingEngine {
             val maxTokens: Int,
             val title: String
         ) {
-            DAY_3(3, "ENCOURAGEMENT", AIModelUsed.QWEN_0_5B, 150, "Your First 3 Days"),
+            DAY_3(3, "ENCOURAGEMENT", AIModelUsed.CLAUDE_HAIKU, 150, "Your First 3 Days"),
             DAY_7(7, "PATTERN_RECOGNITION", AIModelUsed.CLAUDE_HAIKU, 200, "Week 1 Patterns"),
             DAY_14(14, "DEEPER_INSIGHT", AIModelUsed.CLAUDE_HAIKU, 250, "Two Week Check-In"),
             DAY_30(30, "MONTHLY_REVIEW", AIModelUsed.CLAUDE_SONNET, 400, "Your First Month"),
@@ -1813,26 +1794,26 @@ object AIRoutingEngine {
     }
 
     // =========================================================================
-    // FEATURE 5: REGIONAL SLM (Multi-Language On-Device AI)
+    // FEATURE 5: REGIONAL LANGUAGE ROUTER
     // =========================================================================
 
     /**
-     * Regional SLM - Adapts on-device responses to user's language
+     * Regional language support for localized templates and routing hints.
      *
-     * Qwen2.5 0.5B has good multilingual support, but we can:
+     * We use translated templates for common responses and:
      * 1. Use translated templates for common responses
      * 2. Detect language and provide appropriate fallbacks
-     * 3. Route to Claude for languages the SLM struggles with
+     * 3. Route to Claude for unsupported local paths
      *
-     * Supported languages for on-device: EN, ES, FR, DE, PT, IT
-     * Others: Fall back to Haiku (minimal cost for translation quality)
+     * Supported local template languages: EN, ES, FR, DE, PT, IT, NL, ID, MS.
+     * Others: default to English template and Claude Haiku for adaptive replies.
      */
-    object RegionalSLM {
+    object RegionalLanguageRouter {
 
         enum class SupportedLanguage(
             val code: String,
             val displayName: String,
-            val slmSupported: Boolean,  // Good SLM quality
+            val localTemplateSupported: Boolean,
             val rtl: Boolean = false
         ) {
             ENGLISH("en", "English", true),
@@ -1871,17 +1852,13 @@ object AIRoutingEngine {
 
         fun getCurrentLanguage(): SupportedLanguage = userLanguage
 
-        /**
-         * Check if on-device SLM can handle this language well
-         */
-        fun canUseSLM(): Boolean = userLanguage.slmSupported
+        fun hasLocalTemplateSupport(): Boolean = userLanguage.localTemplateSupported
 
         /**
          * Get model recommendation based on language
          */
         fun getLanguageAwareModel(baseModel: AIModelUsed): AIModelUsed {
-            // If SLM is recommended but language not supported, upgrade to Haiku
-            return if (baseModel == AIModelUsed.QWEN_0_5B && !canUseSLM()) {
+            return if (baseModel == AIModelUsed.DECISION_TREE && !hasLocalTemplateSupport()) {
                 AIModelUsed.CLAUDE_HAIKU
             } else {
                 baseModel

@@ -5,19 +5,19 @@ import kotlinx.serialization.Serializable
 /**
  * AI Usage Tracking for Cost Control (February 2026)
  *
- * Hybrid AI Model Hierarchy:
+ * AI Model Hierarchy:
  * 1. Decision Tree (FREE) - Simple routing
- * 2. Qwen2.5 0.5B (FREE) - On-device SLM (~380MB, 15-30 tok/s via llama.cpp)
- * 3. Claude Haiku 4.5 (PAID) - Cloud API ($1/$5 per MTok)
- * 4. Claude Sonnet 4.5 (PAID) - Vision/complex only ($3/$15 per MTok)
+ * 2. Claude Haiku 4.5 (PAID) - Cloud API ($1/$5 per MTok)
+ * 3. Claude Sonnet 4.5 (PAID) - Vision/complex only ($3/$15 per MTok)
+ * 4. Claude Opus 4.5 (PAID) - Weekly reports and deep synthesis
  *
  * Monthly USD Caps (resets on 1st of each month):
- * - FREE: $0.10 hard cap -> SLM-only immediately
- * - MONTHLY: $4.50 soft, $5.00 hard -> SLM-only after
- * - ANNUAL: $3.60 soft, $4.00 hard -> SLM-only after
- * - LIFETIME: $5.00 soft, $5.50 hard -> SLM-only after
- * - FAMILY_OWNER (60%/3x): $2.50 soft, $2.75 hard -> SLM-only after
- * - FAMILY_MEMBER (20%): $0.80 soft, $0.92 hard -> SLM-only after
+ * - FREE: $0.10 hard cap
+ * - MONTHLY: $4.50 soft, $5.00 hard
+ * - ANNUAL: $3.60 soft, $4.00 hard
+ * - LIFETIME: $5.00 soft, $5.50 hard
+ * - FAMILY_OWNER (60%/3x): $2.50 soft, $2.75 hard
+ * - FAMILY_MEMBER (20%): $0.80 soft, $0.92 hard
  *
  * Claude Haiku 4.5 pricing:
  * - Input: $1.00 per million tokens
@@ -35,7 +35,7 @@ data class UserAIUsage(
     val tokensUsed: Int = 0,
     val messagesCount: Int = 0,
     val freeMessagesCount: Int = 0,  // Messages handled by decision tree (FREE)
-    val slmMessagesCount: Int = 0,   // Messages handled by Qwen 0.5B (FREE)
+    val fallbackMessagesCount: Int = 0, // Messages handled by non-primary fallback mode
     val aiMessagesCount: Int = 0,    // Messages sent to Claude API (PAID)
     val cloudChatCalls: Int = 0,     // Cloud calls from coach chat replies
     val cloudScanCalls: Int = 0,     // Cloud calls from food scan analysis
@@ -74,7 +74,7 @@ data class UserAIUsage(
     val isAtHardCap: Boolean
         get() = currentMonthCostUsd >= hardCapUsd
 
-    val shouldUseSLM: Boolean
+    val shouldUseFallbackMode: Boolean
         get() = isAtHardCap
 
     val costRemainingUsd: Float
@@ -86,18 +86,18 @@ data class UserAIUsage(
         } else 100f
 
     val localMessagesCount: Int
-        get() = freeMessagesCount + slmMessagesCount
+        get() = freeMessagesCount + fallbackMessagesCount
 
     val cloudTotalCalls: Int
         get() = cloudChatCalls + cloudScanCalls + cloudReportCalls
 
     /**
      * Efficiency ratio: How many messages are handled for FREE vs PAID
-     * Higher is better (means more decision tree + SLM usage)
+     * Higher is better (means more decision tree/template usage)
      */
     val efficiencyRatio: Float
         get() = if (messagesCount > 0) {
-            (freeMessagesCount + slmMessagesCount).toFloat() / messagesCount
+            (freeMessagesCount + fallbackMessagesCount).toFloat() / messagesCount
         } else 0f
 
     /**
@@ -123,7 +123,7 @@ enum class AIPlanType(
     val monthlyTokenLimit: Int,
     val maxMessagesPerDay: Int,
     val softCapUsd: Float,   // Warning threshold
-    val hardCapUsd: Float    // SLM-only after this (until next month)
+    val hardCapUsd: Float    // Fallback-safe mode after this (until next month)
 ) {
     // PRICING (February 2026):
     // Monthly: $9.99/mo, Annual: $79.99/yr ($6.67/mo), Lifetime: $349.99
@@ -135,7 +135,7 @@ enum class AIPlanType(
         monthlyTokenLimit = 25_000,
         maxMessagesPerDay = 5,
         softCapUsd = 0.10f,
-        hardCapUsd = 0.10f   // SLM immediately for free users
+        hardCapUsd = 0.10f
     ),
     MONTHLY(
         displayName = "Premium Monthly",
@@ -190,7 +190,7 @@ enum class AIPlanType(
 @Serializable
 data class AIUsageCheckResult(
     val canUseAI: Boolean,
-    val canUseCloudAI: Boolean = true,     // false = must use SLM
+    val canUseCloudAI: Boolean = true,     // false = use lower-cost fallback mode
     val recommendedModel: AIModelUsed = AIModelUsed.CLAUDE_HAIKU,
     val reason: AIUsageBlockReason? = null,
     val tokensRemaining: Int,
@@ -199,7 +199,7 @@ data class AIUsageCheckResult(
     val isAtSoftCap: Boolean = false,
     val isAtHardCap: Boolean = false,
     val upgradeMessage: String? = null,
-    val slmFallbackMessage: String? = null
+    val fallbackModeMessage: String? = null
 )
 
 @Serializable
@@ -217,13 +217,13 @@ enum class AIUsageBlockReason(val userMessage: String) {
         "Too many messages too quickly. Please wait a moment."
     ),
     SOFT_CAP_REACHED(
-        "Heads up! You're approaching your monthly AI limit. Responses may use on-device AI to conserve credits."
+        "Heads up! You're approaching your monthly AI limit. Responses may shift to lighter AI behavior to conserve credits."
     ),
     HARD_CAP_REACHED(
-        "You've reached your monthly AI budget. Using on-device AI until next month - still works great, just a bit different!"
+        "You've reached your monthly AI budget. We switched to a cost-safe coach mode until next month."
     ),
-    SLM_FALLBACK_ACTIVE(
-        "Currently using on-device AI to stay within budget. Resets on the 1st!"
+    FALLBACK_MODE_ACTIVE(
+        "Currently using cost-safe fallback behavior to stay within budget. Resets on the 1st."
     )
 }
 
@@ -232,19 +232,17 @@ enum class AIUsageBlockReason(val userMessage: String) {
  *
  * Routing Hierarchy (cost optimization):
  * - DECISION_TREE: Pattern matching, ~70% of messages (FREE)
- * - QWEN_0_5B: On-device SLM (Qwen2.5 0.5B via llama.cpp) for simple reasoning (FREE)
  * - CLAUDE_HAIKU: Standard cloud responses, $1/$5 per MTok (PAID)
  * - CLAUDE_SONNET: Complex analysis & vision, $3/$15 per MTok (PAID)
  * - CLAUDE_OPUS: Heavy reports & deep insights, $15/$75 per MTok (PAID)
  *
  * Tier Access:
- * - FREE: DECISION_TREE + QWEN_0_5B (SLM) only (never Claude)
+ * - FREE: Decision tree + constrained cloud behavior
  * - PREMIUM: All models with intelligent routing
  */
 @Serializable
 enum class AIModelUsed(val displayName: String, val isFree: Boolean) {
     DECISION_TREE("Decision Tree", true),
-    QWEN_0_5B("Qwen2.5 (On-Device)", true),
     CLAUDE_HAIKU("Claude Haiku 4.5", false),
     CLAUDE_SONNET("Claude Sonnet 4.5", false),
     CLAUDE_OPUS("Claude Opus 4.5", false)
@@ -275,7 +273,6 @@ data class AIInteraction(
     val estimatedCostUsd: Float
         get() = when (modelUsed) {
             AIModelUsed.DECISION_TREE -> 0f
-            AIModelUsed.QWEN_0_5B -> 0f  // On-device = FREE
             AIModelUsed.CLAUDE_HAIKU -> {
                 // Claude Haiku 4.5 pricing (2026): $1/$5 per MTok
                 val inputCost = inputTokens * 1.00f / 1_000_000

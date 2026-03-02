@@ -36,21 +36,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.dailywell.app.ai.SLMDownloadProgress
+import com.dailywell.app.core.theme.AccentIndigo
+import com.dailywell.app.core.theme.AccentSky
 import com.dailywell.app.core.theme.LocalDailyWellColors
-import com.dailywell.app.core.theme.Primary
-import com.dailywell.app.core.theme.PrimaryLight
-import com.dailywell.app.core.theme.Success
-import com.dailywell.app.core.theme.Secondary
-import com.dailywell.app.core.theme.SecondaryLight
 import com.dailywell.app.core.theme.Error
 import com.dailywell.app.core.theme.Warning
-import com.dailywell.app.core.theme.WarningLight
 import com.dailywell.app.data.model.*
 import com.dailywell.app.speech.SpeechRecognitionState
 import com.dailywell.app.ui.components.DailyWellIcons
 import com.dailywell.app.ui.components.GlassScreenWrapper
-import com.dailywell.app.ui.components.PlatformCoachAvatar
 import com.dailywell.app.ui.components.VoiceInputButton
 import com.dailywell.app.ui.components.VoiceInputStatus
 import kotlinx.coroutines.launch
@@ -68,11 +62,24 @@ fun AICoachingScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var bootstrapped by rememberSaveable { mutableStateOf(false) }
+    val microphonePermissionRequester = rememberMicrophonePermissionRequester(
+        onPermissionResult = viewModel::onMicrophonePermissionResult
+    )
 
     LaunchedEffect(Unit) {
         if (!bootstrapped) {
             bootstrapped = true
             viewModel.onCoachScreenOpened()
+        }
+    }
+
+    LaunchedEffect(uiState.needsMicrophonePermission) {
+        if (!uiState.needsMicrophonePermission) return@LaunchedEffect
+
+        if (microphonePermissionRequester.isGranted()) {
+            viewModel.onMicrophonePermissionResult(true)
+        } else {
+            microphonePermissionRequester.requestPermission()
         }
     }
 
@@ -256,7 +263,7 @@ private fun CoachHistoryDrawer(
                         onClick = { onSelectSession(session.id) },
                         shape = RoundedCornerShape(10.dp),
                         color = if (isActive) {
-                            PrimaryLight.copy(alpha = 0.35f)
+                            AccentSky.copy(alpha = 0.2f)
                         } else {
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                         }
@@ -289,7 +296,7 @@ private fun CoachHistoryDrawer(
                                 Text(
                                     if (isActive) "Active" else session.status.name.lowercase().replaceFirstChar { it.uppercase() },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (isActive) Primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isActive) AccentSky else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 TextButton(
                                     onClick = { onSelectSession(session.id) },
@@ -314,8 +321,6 @@ private fun CoachingHomeView(
     onCompleteAction: (String) -> Unit,
     onCompleteActionItem: (String) -> Unit,
     onDismissActionItem: (String) -> Unit,
-    onStartSLMDownload: () -> Unit,
-    onDismissSLMDownload: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -341,22 +346,6 @@ private fun CoachingHomeView(
                 onStartCoaching = onShowSessionTypes,
                 onMotivationBoost = { onStartSession(CoachingSessionType.MOTIVATION_BOOST) }
             )
-        }
-
-        // SLM model download progress (for offline AI coach)
-        when (val progress = uiState.slmDownloadProgress) {
-            is SLMDownloadProgress.NotStarted,
-            is SLMDownloadProgress.Downloading,
-            is SLMDownloadProgress.Failed,
-            is SLMDownloadProgress.NeedsStorage,
-            is SLMDownloadProgress.WaitingForWifi -> item {
-                SLMDownloadStatusCard(
-                    progress = progress,
-                    onStartDownload = onStartSLMDownload,
-                    onDismiss = onDismissSLMDownload
-                )
-            }
-            else -> Unit
         }
 
         // AI Credits indicator
@@ -412,137 +401,6 @@ private fun CoachingHomeView(
 }
 
 @Composable
-private fun SLMDownloadStatusCard(
-    progress: SLMDownloadProgress,
-    onStartDownload: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val isStorageWarning = progress is SLMDownloadProgress.NeedsStorage
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isStorageWarning) WarningLight else MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when (progress) {
-                        is SLMDownloadProgress.NotStarted -> "Offline AI Coach"
-                        is SLMDownloadProgress.Downloading -> "Downloading AI Coach"
-                        is SLMDownloadProgress.Failed -> "Download failed"
-                        is SLMDownloadProgress.NeedsStorage -> "Storage needed"
-                        is SLMDownloadProgress.WaitingForWifi -> "Waiting for WiFi"
-                        else -> "AI Coach"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isStorageWarning) Warning else MaterialTheme.colorScheme.onSurface
-                )
-
-                if (progress is SLMDownloadProgress.NotStarted ||
-                    progress is SLMDownloadProgress.Failed ||
-                    progress is SLMDownloadProgress.WaitingForWifi
-                ) {
-                    Text(
-                        text = "Later",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onDismiss() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            when (progress) {
-                is SLMDownloadProgress.NotStarted -> {
-                    Text(
-                        "Download about 380MB once for faster, offline AI coaching.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Button(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Start Download")
-                    }
-                }
-                is SLMDownloadProgress.Downloading -> {
-                    val percent = (progress.progress * 100).toInt()
-                    Text(
-                        "Downloading... $percent%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    LinearProgressIndicator(
-                        progress = { progress.progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = Primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                }
-                is SLMDownloadProgress.Failed -> {
-                    Text(
-                        "Could not download the model. Retry on WiFi.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    OutlinedButton(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Retry")
-                    }
-                }
-                is SLMDownloadProgress.NeedsStorage -> {
-                    val needMb = progress.needBytes / (1024 * 1024)
-                    Text(
-                        "Need about ${needMb}MB free to download the offline AI model.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Warning
-                    )
-                    Button(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Warning)
-                    ) {
-                        Text("Check Again", color = Color.White)
-                    }
-                }
-                is SLMDownloadProgress.WaitingForWifi -> {
-                    Text(
-                        "Connect to WiFi to start model download.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedButton(
-                        onClick = onStartDownload,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Check Connection")
-                    }
-                }
-                else -> Unit
-            }
-        }
-    }
-}
-
-@Composable
 private fun DailyInsightCard(
     insight: DailyCoachingInsight,
     coach: CoachPersona,
@@ -551,7 +409,7 @@ private fun DailyInsightCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = PrimaryLight.copy(alpha = 0.3f)
+            containerColor = AccentSky.copy(alpha = 0.14f)
         )
     ) {
         Column(
@@ -563,12 +421,6 @@ private fun DailyInsightCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                PlatformCoachAvatar(
-                    coachId = coach.id,
-                    size = 48.dp,
-                    isActive = true
-                )
-
                 Column {
                     Text(
                         text = coach.name,
@@ -599,7 +451,7 @@ private fun DailyInsightCard(
             // Celebration note
             insight.celebrationNote?.let { note ->
                 Surface(
-                    color = Secondary.copy(alpha = 0.2f),
+                    color = AccentIndigo.copy(alpha = 0.16f),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
@@ -647,7 +499,7 @@ private fun SuggestedActionChip(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = Primary.copy(alpha = 0.1f)
+        color = AccentSky.copy(alpha = 0.12f)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -658,13 +510,13 @@ private fun SuggestedActionChip(
                 imageVector = getSuggestedActionIcon(action.actionType),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = Primary
+                tint = AccentSky
             )
             Text(
                 text = action.title,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
-                color = Primary
+                color = AccentSky
             )
         }
     }
@@ -726,7 +578,7 @@ private fun QuickActionButton(
                 imageVector = icon,
                 contentDescription = label,
                 modifier = Modifier.size(24.dp),
-                tint = Primary
+                tint = AccentSky
             )
             Text(
                 text = label,
@@ -760,7 +612,7 @@ private fun ActionItemCard(
                         when (item.priority) {
                             ActionPriority.HIGH -> Color(0xFFE53935)
                             ActionPriority.MEDIUM -> Color(0xFFFFA726)
-                            ActionPriority.LOW -> Color(0xFF66BB6A)
+                            ActionPriority.LOW -> AccentSky
                         }
                     )
             )
@@ -781,7 +633,7 @@ private fun ActionItemCard(
                 Icon(
                     Icons.Default.Check,
                     contentDescription = "Complete",
-                    tint = Color(0xFF66BB6A)
+                    tint = AccentSky
                 )
             }
 
@@ -801,7 +653,7 @@ private fun WeeklySummaryCard(summary: WeeklyCoachingSummary) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = SecondaryLight.copy(alpha = 0.3f)
+            containerColor = AccentSky.copy(alpha = 0.12f)
         )
     ) {
         Column(
@@ -821,7 +673,7 @@ private fun WeeklySummaryCard(summary: WeeklyCoachingSummary) {
                         imageVector = DailyWellIcons.Analytics.BarChart,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
-                        tint = Primary
+                        tint = AccentSky
                     )
                     Text(
                         text = "Weekly Summary",
@@ -832,7 +684,7 @@ private fun WeeklySummaryCard(summary: WeeklyCoachingSummary) {
 
                 // Score badge
                 Surface(
-                    color = Secondary,
+                    color = AccentIndigo,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
@@ -874,7 +726,7 @@ private fun WeeklySummaryCard(summary: WeeklyCoachingSummary) {
                     imageVector = DailyWellIcons.Gamification.Trophy,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = Primary
+                    tint = AccentSky
                 )
                 Text(
                     text = summary.topWin,
@@ -892,7 +744,7 @@ private fun WeeklySummaryCard(summary: WeeklyCoachingSummary) {
                         imageVector = DailyWellIcons.Onboarding.Philosophy,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = Primary
+                        tint = AccentSky
                     )
                     Text(
                         text = pattern,
@@ -903,7 +755,7 @@ private fun WeeklySummaryCard(summary: WeeklyCoachingSummary) {
 
             // Next week focus
             Surface(
-                color = Primary.copy(alpha = 0.1f),
+                color = AccentSky.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Row(
@@ -915,7 +767,7 @@ private fun WeeklySummaryCard(summary: WeeklyCoachingSummary) {
                         imageVector = DailyWellIcons.Habits.Intentions,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = Primary
+                        tint = AccentSky
                     )
                     Column {
                         Text(
@@ -941,7 +793,7 @@ private fun StatItem(value: String, label: String) {
             text = value,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Primary
+            color = AccentSky
         )
         Text(
             text = label,
@@ -965,7 +817,7 @@ private fun SessionHistoryCard(session: AICoachingSession) {
                 imageVector = getSessionTypeIcon(session.type),
                 contentDescription = session.type.displayName,
                 modifier = Modifier.size(24.dp),
-                tint = Primary
+                tint = AccentSky
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -985,7 +837,7 @@ private fun SessionHistoryCard(session: AICoachingSession) {
                     imageVector = DailyWellIcons.Actions.CheckCircle,
                     contentDescription = "Completed",
                     modifier = Modifier.size(20.dp),
-                    tint = Color(0xFF66BB6A)
+                    tint = AccentSky
                 )
             }
         }
@@ -1050,7 +902,6 @@ private fun ChatSessionView(
     ) {
         CoachSessionActionsBar(
             session = session,
-            coach = coach,
             onEndSession = onEndSession,
             onOpenHistory = onOpenHistory,
             onStartNewChat = onStartNewChat,
@@ -1072,13 +923,12 @@ private fun ChatSessionView(
             items(displayMessages, key = { it.id }) { message ->
                 ChatMessageBubble(
                     message = message,
-                    coach = coach,
                     onQuickReply = onQuickReply
                 )
             }
             if (isGeneratingReply) {
                 item(key = "analyzing_indicator") {
-                    AnalyzingMessageBubble(coach = coach)
+                    AnalyzingMessageBubble()
                 }
             }
         }
@@ -1146,9 +996,9 @@ private fun ChatSessionView(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = dailyWellColors.glassBackground.copy(alpha = 0.55f),
                         unfocusedContainerColor = dailyWellColors.glassBackground.copy(alpha = 0.35f),
-                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                        focusedBorderColor = AccentSky.copy(alpha = 0.55f),
                         unfocusedBorderColor = dailyWellColors.glassBorder.copy(alpha = 0.45f),
-                        cursorColor = MaterialTheme.colorScheme.primary
+                        cursorColor = AccentSky
                     )
                 )
 
@@ -1162,15 +1012,15 @@ private fun ChatSessionView(
                             if (currentMessage.isNotBlank() && !isListening && !isGeneratingReply) {
                                 Brush.horizontalGradient(
                                     listOf(
-                                        Primary,
-                                        Secondary
+                                        AccentSky,
+                                        AccentIndigo
                                     )
                                 )
                             } else {
                                 Brush.horizontalGradient(
                                     listOf(
-                                        Primary.copy(alpha = 0.5f),
-                                        Secondary.copy(alpha = 0.5f)
+                                        AccentSky.copy(alpha = 0.5f),
+                                        AccentIndigo.copy(alpha = 0.5f)
                                     )
                                 )
                             }
@@ -1190,7 +1040,6 @@ private fun ChatSessionView(
 @Composable
 private fun CoachSessionActionsBar(
     session: AICoachingSession,
-    coach: CoachPersona,
     onEndSession: () -> Unit,
     onOpenHistory: () -> Unit,
     onStartNewChat: () -> Unit,
@@ -1209,20 +1058,17 @@ private fun CoachSessionActionsBar(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(onClick = onBack) {
+            TextButton(
+                onClick = onBack,
+                colors = ButtonDefaults.textButtonColors(contentColor = AccentSky)
+            ) {
                 Text("Back")
             }
             Spacer(modifier = Modifier.width(4.dp))
             Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                PlatformCoachAvatar(
-                    coachId = coach.id,
-                    size = 28.dp,
-                    isActive = true
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "Coach chat",
+                        text = "Coach",
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1235,9 +1081,18 @@ private fun CoachSessionActionsBar(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                TextButton(onClick = onOpenHistory) { Text("History") }
-                TextButton(onClick = onStartNewChat) { Text("New") }
-                TextButton(onClick = onEndSession) { Text("End") }
+                TextButton(
+                    onClick = onOpenHistory,
+                    colors = ButtonDefaults.textButtonColors(contentColor = AccentSky)
+                ) { Text("History") }
+                TextButton(
+                    onClick = onStartNewChat,
+                    colors = ButtonDefaults.textButtonColors(contentColor = AccentSky)
+                ) { Text("New") }
+                TextButton(
+                    onClick = onEndSession,
+                    colors = ButtonDefaults.textButtonColors(contentColor = AccentSky)
+                ) { Text("End") }
             }
         }
     }
@@ -1246,7 +1101,6 @@ private fun CoachSessionActionsBar(
 @Composable
 private fun ChatMessageBubble(
     message: CoachingMessage,
-    coach: CoachPersona,
     onQuickReply: (String) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -1261,15 +1115,6 @@ private fun ChatMessageBubble(
             verticalAlignment = Alignment.Bottom,
             modifier = Modifier.fillMaxWidth()
         ) {
-            if (isCoach) {
-                PlatformCoachAvatar(
-                    coachId = coach.id,
-                    size = 32.dp,
-                    isActive = false
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
             Surface(
                 color = Color.Transparent,
                 shape = RoundedCornerShape(
@@ -1281,7 +1126,7 @@ private fun ChatMessageBubble(
                 border = BorderStroke(
                     width = 1.dp,
                     color = if (isCoach) {
-                        colorScheme.primary.copy(alpha = 0.34f)
+                        AccentSky.copy(alpha = 0.30f)
                     } else {
                         Color.White.copy(alpha = 0.28f)
                     }
@@ -1294,15 +1139,15 @@ private fun ChatMessageBubble(
                             if (isCoach) {
                                 Brush.horizontalGradient(
                                     listOf(
-                                        colorScheme.primaryContainer.copy(alpha = 0.96f),
-                                        colorScheme.secondaryContainer.copy(alpha = 0.90f)
+                                        Color(0xFFEAF4FF),
+                                        Color(0xFFDEE9FF)
                                     )
                                 )
                             } else {
                                 Brush.horizontalGradient(
                                     listOf(
-                                        Primary,
-                                        Secondary
+                                        AccentSky,
+                                        AccentIndigo
                                     )
                                 )
                             }
@@ -1311,7 +1156,7 @@ private fun ChatMessageBubble(
                 ) {
                     Text(
                         text = message.content,
-                        color = if (isCoach) colorScheme.onPrimaryContainer else Color.White
+                        color = if (isCoach) colorScheme.onSurface else Color.White
                     )
                 }
             }
@@ -1322,7 +1167,7 @@ private fun ChatMessageBubble(
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(start = 40.dp)
+                contentPadding = PaddingValues(start = 0.dp)
             ) {
                 items(message.suggestions) { suggestion ->
                     Surface(
@@ -1358,7 +1203,7 @@ private fun ChatMessageBubble(
 }
 
 @Composable
-private fun AnalyzingMessageBubble(coach: CoachPersona) {
+private fun AnalyzingMessageBubble() {
     val dailyWellColors = LocalDailyWellColors.current
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -1369,13 +1214,6 @@ private fun AnalyzingMessageBubble(coach: CoachPersona) {
             verticalAlignment = Alignment.Bottom,
             modifier = Modifier.fillMaxWidth()
         ) {
-            PlatformCoachAvatar(
-                coachId = coach.id,
-                size = 32.dp,
-                isActive = false
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-
             Surface(
                 color = dailyWellColors.glassPrimary.copy(alpha = 0.88f),
                 shape = RoundedCornerShape(
@@ -1441,7 +1279,7 @@ private fun SessionTypeSelectorDialog(
                                 imageVector = getSessionTypeIcon(type),
                                 contentDescription = type.displayName,
                                 modifier = Modifier.size(24.dp),
-                                tint = Primary
+                                tint = AccentSky
                             )
                             Text(
                                 text = type.displayName,
@@ -1479,7 +1317,7 @@ private fun AICreditsCard(
     // Color changes based on remaining credits
     val progressColor by animateColorAsState(
         targetValue = when {
-            creditsPercent > 50f -> Success
+            creditsPercent > 50f -> AccentSky
             creditsPercent > 20f -> Warning
             else -> Error
         },
@@ -1511,14 +1349,14 @@ private fun AICreditsCard(
                         fontWeight = FontWeight.Medium
                     )
                     Surface(
-                        color = Primary.copy(alpha = 0.1f),
+                        color = AccentSky.copy(alpha = 0.12f),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
                             text = planType,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Primary
+                            color = AccentSky
                         )
                     }
                 }
@@ -1622,7 +1460,7 @@ private fun UpgradePromptDialog(
                 // Upgrade benefits
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = PrimaryLight.copy(alpha = 0.3f)
+                        containerColor = AccentSky.copy(alpha = 0.16f)
                     )
                 ) {
                     Column(
@@ -1654,7 +1492,7 @@ private fun UpgradePromptDialog(
                     Button(
                         onClick = onUpgrade,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo)
                     ) {
                         Text("Upgrade")
                     }
@@ -1674,7 +1512,7 @@ private fun BenefitRow(text: String) {
             Icons.Default.Check,
             contentDescription = null,
             modifier = Modifier.size(16.dp),
-            tint = Primary
+            tint = AccentSky
         )
         Text(
             text = text,
@@ -1774,7 +1612,7 @@ private fun TrendIconItem(trend: TrendDirection, label: String) {
             },
             contentDescription = trend.name,
             modifier = Modifier.size(28.dp),
-            tint = Primary
+            tint = AccentSky
         )
         Text(
             text = label,

@@ -23,7 +23,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AIUsageEntity::class,
         AIInteractionEntity::class
     ],
-    version = 2,  // Incremented for new AI feature tables
+    version = 3,
     exportSchema = false
 )
 abstract class DailyWellDatabase : RoomDatabase() {
@@ -32,7 +32,7 @@ abstract class DailyWellDatabase : RoomDatabase() {
     abstract fun entryDao(): EntryDao
     abstract fun achievementDao(): AchievementDao
 
-    // AI Feature DAOs (v2)
+    // AI Feature DAOs
     abstract fun abTestDao(): ABTestDao
     abstract fun insightSchedulerDao(): InsightSchedulerDao
     abstract fun contextCacheDao(): ContextCacheDao
@@ -119,7 +119,7 @@ abstract class DailyWellDatabase : RoomDatabase() {
                     CREATE TABLE IF NOT EXISTS user_ai_settings (
                         userId TEXT NOT NULL PRIMARY KEY,
                         preferredLanguage TEXT NOT NULL DEFAULT 'en',
-                        slmEnabled INTEGER NOT NULL DEFAULT 1,
+                        fallbackModeEnabled INTEGER NOT NULL DEFAULT 1,
                         lastLanguageDetected TEXT,
                         updatedAt INTEGER NOT NULL
                     )
@@ -153,7 +153,62 @@ abstract class DailyWellDatabase : RoomDatabase() {
                         tokensUsed INTEGER NOT NULL DEFAULT 0,
                         messagesCount INTEGER NOT NULL DEFAULT 0,
                         freeMessagesCount INTEGER NOT NULL DEFAULT 0,
-                        slmMessagesCount INTEGER NOT NULL DEFAULT 0,
+                        fallbackMessagesCount INTEGER NOT NULL DEFAULT 0,
+                        aiMessagesCount INTEGER NOT NULL DEFAULT 0,
+                        currentMonthCostUsd REAL NOT NULL DEFAULT 0,
+                        resetDate TEXT NOT NULL,
+                        lastUpdated INTEGER NOT NULL
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS ai_interactions (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        userId TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        inputTokens INTEGER NOT NULL,
+                        outputTokens INTEGER NOT NULL,
+                        totalTokens INTEGER NOT NULL,
+                        modelUsed TEXT NOT NULL,
+                        responseCategory TEXT NOT NULL,
+                        durationMs INTEGER,
+                        estimatedCostUsd REAL NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+            }
+        }
+
+        /**
+         * Migration v2 -> v3
+         * Hard purge of AI feature tables to remove legacy local-model schema keys.
+         * Core habit data remains untouched.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS user_ai_settings")
+                db.execSQL("DROP TABLE IF EXISTS ai_usage_tracking")
+                db.execSQL("DROP TABLE IF EXISTS ai_interactions")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS user_ai_settings (
+                        userId TEXT NOT NULL PRIMARY KEY,
+                        preferredLanguage TEXT NOT NULL DEFAULT 'en',
+                        fallbackModeEnabled INTEGER NOT NULL DEFAULT 1,
+                        lastLanguageDetected TEXT,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS ai_usage_tracking (
+                        usageId TEXT NOT NULL PRIMARY KEY,
+                        userId TEXT NOT NULL,
+                        month TEXT NOT NULL,
+                        planType TEXT NOT NULL,
+                        tokensUsed INTEGER NOT NULL DEFAULT 0,
+                        messagesCount INTEGER NOT NULL DEFAULT 0,
+                        freeMessagesCount INTEGER NOT NULL DEFAULT 0,
+                        fallbackMessagesCount INTEGER NOT NULL DEFAULT 0,
                         aiMessagesCount INTEGER NOT NULL DEFAULT 0,
                         currentMonthCostUsd REAL NOT NULL DEFAULT 0,
                         resetDate TEXT NOT NULL,
@@ -185,7 +240,7 @@ abstract class DailyWellDatabase : RoomDatabase() {
                     DailyWellDatabase::class.java,
                     "dailywell_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance

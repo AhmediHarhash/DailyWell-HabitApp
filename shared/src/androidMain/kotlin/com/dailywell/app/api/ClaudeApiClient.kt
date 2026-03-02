@@ -22,7 +22,10 @@ import kotlinx.serialization.json.put
 
 /**
  * Real Claude API client for AI coaching
- * Uses claude-sonnet-4-20250514 (latest 2026 model)
+ * Task-specific routing:
+ * - Coach chat: Haiku 4.5
+ * - Scanner/vision: Sonnet
+ * - Weekly reports: Opus
  *
  * SECURITY HARDENED:
  * - CVE-DW-005 FIX: Rate limiting (max 10 requests/minute)
@@ -82,7 +85,7 @@ class ClaudeApiClient {
         userMessage: String,
         coachPersonality: CoachPersonality,
         userContext: UserContext,
-        model: AIModelUsed = AIModelUsed.CLAUDE_SONNET
+        model: AIModelUsed = AIModelUsed.CLAUDE_HAIKU
     ): Result<String> {
         // SECURITY: Check rate limit before making request
         if (!checkRateLimit()) {
@@ -92,9 +95,10 @@ class ClaudeApiClient {
         return try {
             val systemPrompt = buildSystemPrompt(coachPersonality, userContext)
             val modelId = when (model) {
-                AIModelUsed.CLAUDE_HAIKU -> ApiConfig.CLAUDE_HAIKU_MODEL
-                AIModelUsed.CLAUDE_OPUS -> ApiConfig.CLAUDE_OPUS_MODEL
-                else -> ApiConfig.CLAUDE_MODEL
+                AIModelUsed.CLAUDE_HAIKU -> ApiConfig.CLAUDE_COACH_MODEL
+                AIModelUsed.CLAUDE_OPUS -> ApiConfig.CLAUDE_WEEKLY_REPORT_MODEL
+                AIModelUsed.CLAUDE_SONNET -> ApiConfig.CLAUDE_SCANNER_MODEL
+                else -> ApiConfig.CLAUDE_COACH_MODEL
             }
 
             val request = ClaudeRequest(
@@ -164,7 +168,7 @@ class ClaudeApiClient {
             """.trimIndent()
 
             val request = ClaudeRequest(
-                model = ApiConfig.CLAUDE_MODEL,
+                model = ApiConfig.CLAUDE_COACH_MODEL,
                 maxTokens = 600,
                 system = systemPrompt,
                 messages = listOf(
@@ -200,8 +204,7 @@ class ClaudeApiClient {
     }
 
     /**
-     * Analyze a food photo using Claude Haiku 4.5 Vision
-     * Cost: ~$0.006 per image (very affordable)
+     * Analyze a food photo using Claude Sonnet Vision
      *
      * Returns structured food analysis with:
      * - Food name and description
@@ -275,7 +278,7 @@ class ClaudeApiClient {
             }
 
             val request = ClaudeVisionRequest(
-                model = ApiConfig.CLAUDE_HAIKU_MODEL,
+                model = ApiConfig.CLAUDE_SCANNER_MODEL,
                 maxTokens = 800,
                 system = systemPrompt,
                 messages = listOf(
@@ -454,7 +457,7 @@ class ClaudeApiClient {
         }
         return try {
             val request = ClaudeRequest(
-                model = "claude-haiku-4-5-20251001",
+                model = ApiConfig.CLAUDE_COACH_MODEL,
                 maxTokens = maxTokens,
                 system = systemPrompt,
                 messages = listOf(ClaudeMessage(role = "user", content = userMessage))

@@ -127,10 +127,6 @@ kotlin {
             // Accompanist permissions (camera access)
             implementation(libs.accompanist.permissions)
 
-            // Llamatik: KMP llama.cpp wrapper (supports Gemma 3N + Qwen2.5)
-            // Provides SLM fallback when cloud API budget exceeded
-            implementation("com.llamatik:library:0.12.0")
-
             // SECURITY: Encrypted storage (CVE-DW-003 FIX)
             // EncryptedSharedPreferences for sensitive data at rest
             implementation("androidx.security:security-crypto:1.1.0-alpha06")
